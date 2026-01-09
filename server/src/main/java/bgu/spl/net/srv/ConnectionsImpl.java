@@ -1,21 +1,41 @@
 package bgu.spl.net.srv;
 
-public class ConnectionsImpl implements Connections<String> {
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
+import java.util.Set;
 
-    @Override
-    public boolean send(int connectionId, String msg) {
-        // Implementation here
+public class ConnectionsImpl<T> implements Connections<T> {
+    private final Map<Integer, ConnectionHandler<T>> activeClients = new ConcurrentHashMap<>();
+    private final Map<String, Set<Integer>> channelSubscriptions = new ConcurrentHashMap<>();
+
+    
+    public boolean send(int connectionId, T msg) {
+        ConnectionHandler<T> handler = activeClients.get(connectionId);
+        if (handler != null) {
+            handler.send(msg); 
+            return true;
+        }
         return false;
     }
 
-    @Override
-    public void send(String channel, String msg) {
-        // Implementation here
+  
+    public void send(String channel, T msg) {
+        Set<Integer> subscribers = channelSubscriptions.get(channel);
+        if (subscribers != null) {
+            for (Integer id : subscribers) {
+                send(id, msg);
+            }
+        }
     }
 
-    @Override
+    
     public void disconnect(int connectionId) {
-        // Implementation here
+        activeClients.remove(connectionId);
+        
     }
-
+    
+    
+    public void addClient(int connectionId, ConnectionHandler<T> handler) {
+        activeClients.put(connectionId, handler);
+    }
 }
