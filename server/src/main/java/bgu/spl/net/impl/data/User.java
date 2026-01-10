@@ -5,6 +5,7 @@ public class User {
 	public final String password;
 	private int connectionId;
 	private boolean isLoggedIn = false;
+	
 
 	public User(int connectionId, String name, String password) {
 		this.connectionId = connectionId;

@@ -1,12 +1,15 @@
 package bgu.spl.net.srv;
 
 import java.util.concurrent.ConcurrentHashMap;
+
+import bgu.spl.net.impl.data.Subscriber;
+
 import java.util.Map;
 import java.util.Set;
 
 public class ConnectionsImpl<T> implements Connections<T> {
     private final Map<Integer, ConnectionHandler<T>> activeClients = new ConcurrentHashMap<>();
-    private final Map<String, Set<Integer>> channelSubscriptions = new ConcurrentHashMap<>();
+    private final Map<String, Set<Subscriber>> channelSubscriptions = new ConcurrentHashMap<>();
 
     
     public boolean send(int connectionId, T msg) {
@@ -20,10 +23,10 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
   
     public void send(String channel, T msg) {
-        Set<Integer> subscribers = channelSubscriptions.get(channel);
+        Set<Subscriber> subscribers = channelSubscriptions.get(channel);
         if (subscribers != null) {
-            for (Integer id : subscribers) {
-                send(id, msg);
+            for (Subscriber sub : subscribers) {
+                send(sub.getUniqID(), msg);
             }
         }
     }
@@ -31,14 +34,20 @@ public class ConnectionsImpl<T> implements Connections<T> {
     
     public void disconnect(int connectionId) {
         activeClients.remove(connectionId);
-        for (Set<Integer> subscribers : channelSubscriptions.values()) {
-            subscribers.remove(connectionId);
+        for (Set<Subscriber> subscribers : channelSubscriptions.values()) {
+            for(Subscriber sub:subscribers){
+                if (sub.getUniqID()==connectionId){   //had to, because of the stamp of the function
+                    subscribers.remove(sub);
+                    break;
+                }
+            }
+            
         }
         
     }
     
     public int newUniqID(){
-        int id=(int)(Math.random()*100000000);  //maybe not the best way
+        int id=(int)(Math.random()*100000000);  
         while(activeClients.containsKey(id));
             id=(int)(Math.random()*100000000);
         return id;
@@ -47,4 +56,18 @@ public class ConnectionsImpl<T> implements Connections<T> {
     public void addClient(int connectionId, ConnectionHandler<T> handler) {
         activeClients.put(connectionId, handler);
     }
+
+    public int subContains(String sub,int connectionID){
+        if(!channelSubscriptions.containsKey(sub)){
+            return -1;     //this sub channel does not exists.
+        }   
+        Set<Subscriber> set = channelSubscriptions.get(sub);
+        for(int i=0;i<set.size();)
+        if(!set.contains(connectionID)){
+            return 0;
+        }
+        return 1;
+        }
+
+    
 }

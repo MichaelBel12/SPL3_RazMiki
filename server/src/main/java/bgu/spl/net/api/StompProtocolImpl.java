@@ -1,6 +1,7 @@
 package bgu.spl.net.api;
 
 import bgu.spl.net.srv.Connections;
+import bgu.spl.net.srv.ConnectionsImpl;
 import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.impl.data.LoginStatus;
 
@@ -14,7 +15,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
     @Override
     public void start(int connectionId, Connections<String> connections) {
         this.connectionId = connectionId;
-        this.connections = connections;
+        this.connections = (ConnectionsImpl)connections;
     }
 
     @Override
@@ -28,56 +29,91 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
         String command = lines[0].trim();
         switch (command) {
             case "CONNECT":
-                if(lines.length!=7){
-                    HandleError("incorrect connect format");
+                if(lines.length!=6){
+                    HandleError("Wrong format- frame Has less/more lines than needed");
                     return;
                 }
                 if (isConnected) {
-                    HandleError("Already connected");
+                    HandleError("User is already connected!");
                     return;
                 }
-                if (!lines[1].trim().equals("accept-version:1.2")) {
-                    HandleError("Missing or wrong accept-version:1.2");
+                String acceptVersion = null;
+                String host = null;
+                String username = null;
+                String password = null;
+                int emptylines=0;
+                for (int i = 1; i < lines.length; i++) {
+                    String line = lines[i].trim();
+                    if (line.isEmpty()){
+                        emptylines++;
+                        break;
+                    }  
+                    if (line.startsWith("accept-version:")) {
+                        acceptVersion = line.substring(15).trim();
+                    } else if (line.startsWith("host:")) {
+                        host = line.substring(5).trim();
+                    } else if (line.startsWith("login:")) {
+                        username = line.substring(6).trim();
+                    } else if (line.startsWith("passcode:")) {
+                        password = line.substring(9).trim();
+                    }
+                }
+                if(emptylines!=1){
+                    HandleError("Wrong format- Missing an empty line!");
                     return;
                 }
-                if (!lines[2].trim().equals("host:stomp.cs.bgu.ac.il")) {
-                    HandleError("Missing or wrong host");
+
+                if (!"1.2".equals(acceptVersion)) {
+                    HandleError("Wrong or missing accept-version!");
                     return;
                 }
-                String username = "";
-                if (lines[3].startsWith("login:")) {
-                    username = lines[3].substring(6).trim();                 // "login:" is 6 characters
-                } else {
-                    HandleError("Missing login header");
+                if (!"stomp.cs.bgu.ac.il".equals(host)) {
+                    HandleError("Wrong or missing host!");
                     return;
                 }
-                String password = "";
-                if (lines[4].startsWith("passcode:")) {
-                    password = lines[4].substring(9).trim();                    // "passcode:" is 9 characters
-                } else {
-                    HandleError("Missing passcode header");
+                if (username == null || password == null) {
+                    HandleError("Missing login or passcode headers!");
                     return;
                 }
                 LoginStatus status = Database.getInstance().login(connectionId, username, password);
                 if (status == LoginStatus.LOGGED_IN_SUCCESSFULLY || status == LoginStatus.ADDED_NEW_USER) {
                     this.isConnected = true;
-                    String response = "CONNECTED\nversion:1.2\n\n\u0000";
+                    String response = "CONNECTED\nversion:1.2\n\n\u0000";  //actual response to client
                     connections.send(connectionId, response);
                 } else if (status == LoginStatus.WRONG_PASSWORD) {
-                    HandleError("Wrong password");
+                    HandleError("Wrong password!");
                 } else if (status == LoginStatus.ALREADY_LOGGED_IN) {
-                    HandleError("User already logged in");
+                    HandleError("User already logged in!");
                 } else {
-                    HandleError("Login failed");
+                    HandleError("Login failed!");
                 }
                 break;
 
-
-
-
-
             case "SEND":
+                if(!lines[1].startsWith("destination:/topic/")){
+                    HandleError("Missing or wrong destination header");
+                    return;
+                }
+                if(lines[2].length()!=0)
+                    HandleError("Wrong format- frame missing an empty line between header and body!");
+                String destination= lines[1].substring(19).trim();
+                int validity=((ConnectionsImpl)connections).subContains(destination,connectionId);
+                if(validity==-1)
+                    HandleError("Given Subscription Channel does not exist!");
+                if (validity==0)
+                    HandleError("Given user isnt subscribed to given Channel!");
+                else{
+                    int firstLiner=message.indexOf('\n');
+                    int secondLiner=message.substring(firstLiner+1).indexOf('\n');
+                    int thirdLiner=message.substring(secondLiner+1).indexOf('\n');
+                    String toSend=message.substring(thirdLiner+1); 
+                    connections.send(destination, toSend); 
+                    //to add: what the servers sends to all the sub's clients from this message.
+                }
                 break;
+
+            
+
             case "SUBSCRIBE":
                 break;
             case "UNSUBSCRIBE":
@@ -89,28 +125,10 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
 
 
 
-
+            }
         }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    }
 
 
     @Override
