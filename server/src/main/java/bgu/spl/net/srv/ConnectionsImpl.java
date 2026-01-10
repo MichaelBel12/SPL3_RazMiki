@@ -59,14 +59,16 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     public int subContains(String sub,int connectionID){
         if(!channelSubscriptions.containsKey(sub)){
-            return -1;     //this sub channel does not exists.
+            return -1;          //this sub channel does not exists.
         }   
-        Set<Subscriber> set = channelSubscriptions.get(sub);
-        for(int i=0;i<set.size();)
-        if(!set.contains(connectionID)){
-            return 0;
+        Set<Subscriber> set = channelSubscriptions.get(sub);    //sub exists, now checks for client
+        for(Subscriber cur:set){       
+            if(cur.getUniqID()==connectionID){
+                return 1;
+            }
         }
-        return 1;
+        return 0;
+        
         }
 
     
