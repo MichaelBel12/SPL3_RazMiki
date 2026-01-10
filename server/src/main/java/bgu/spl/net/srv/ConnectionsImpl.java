@@ -31,9 +31,18 @@ public class ConnectionsImpl<T> implements Connections<T> {
     
     public void disconnect(int connectionId) {
         activeClients.remove(connectionId);
+        for (Set<Integer> subscribers : channelSubscriptions.values()) {
+            subscribers.remove(connectionId);
+        }
         
     }
     
+    public int newUniqID(){
+        int id=(int)(Math.random()*100000000);  //maybe not the best way
+        while(activeClients.containsKey(id));
+            id=(int)(Math.random()*100000000);
+        return id;
+    }
     
     public void addClient(int connectionId, ConnectionHandler<T> handler) {
         activeClients.put(connectionId, handler);

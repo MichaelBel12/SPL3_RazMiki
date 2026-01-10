@@ -6,6 +6,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 
 public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler<T> {
 
@@ -15,11 +16,22 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
     private BufferedInputStream in;
     private BufferedOutputStream out;
     private volatile boolean connected = true;
+    private int id;
+    private ConnectionsImpl<T> myConnections;
+    
 
     public BlockingConnectionHandler(Socket sock, MessageEncoderDecoder<T> reader, MessagingProtocol<T> protocol) {
         this.sock = sock;
         this.encdec = reader;
         this.protocol = protocol;
+    }
+
+    public BlockingConnectionHandler(Socket sock, MessageEncoderDecoder<T> reader, MessagingProtocol<T> protocol,int id,ConnectionsImpl<T> myConnections) {
+        this.sock = sock;
+        this.encdec = reader;
+        this.protocol = protocol;
+        this.id = id;
+        this.myConnections = myConnections;
     }
 
     @Override
@@ -38,6 +50,7 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
                         out.write(encdec.encode(response));
                         out.flush();
                     }
+                    
                 }
             }
 
@@ -55,6 +68,13 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
 
     @Override
     public void send(T msg) {
-        //IMPLEMENT IF NEEDED
+        try{
+            out.write(encdec.encode(msg));
+            out.flush();
+        }
+        catch(IOException e){
+            System.out.println("Error sending message to client");
+
+    }
     }
 }
