@@ -4,6 +4,7 @@ import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
 import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.impl.data.LoginStatus;
+import bgu.spl.net.impl.data.Subscriber;
 
 public class StompProtocolImpl implements StompMessagingProtocol<String> {
 
@@ -82,10 +83,13 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     connections.send(connectionId, response);
                 } else if (status == LoginStatus.WRONG_PASSWORD) {
                     HandleError("Wrong password!");
+                    return;
                 } else if (status == LoginStatus.ALREADY_LOGGED_IN) {
                     HandleError("User already logged in!");
+                    return;
                 } else {
                     HandleError("Login failed!");
+                    return;
                 }
                 break;
 
@@ -94,27 +98,70 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     HandleError("Missing or wrong destination header");
                     return;
                 }
-                if(lines[2].length()!=0)
-                    HandleError("Wrong format- frame missing an empty line between header and body!");
+                if(lines[2].length()!=0){
+                     HandleError("Wrong format- frame missing an empty line between header and body!");
+                     return;
+                }
+                   
                 String destination= lines[1].substring(19).trim();
                 int validity=((ConnectionsImpl)connections).subContains(destination,connectionId);
-                if(validity==-1)
+                if(validity==-1){
                     HandleError("Given Subscription Channel does not exist!");
-                if (validity==0)
-                    HandleError("Given user isnt subscribed to given Channel!");
+                    return;
+
+                }
+                if (validity==0){
+                    HandleError("Given user isnt subscribed to given Channel!");    
+                    return;
+                }  
+                
                 else{
                     int firstLiner=message.indexOf('\n');
                     int secondLiner=message.substring(firstLiner+1).indexOf('\n');
-                    int thirdLiner=message.substring(secondLiner+1).indexOf('\n');
+                    int thirdLiner=message.substring(secondLiner+1).indexOf('\n');  //a way to find the body start index
                     String toSend=message.substring(thirdLiner+1); 
                     connections.send(destination, toSend); 
                     //to add: what the servers sends to all the sub's clients from this message.
                 }
                 break;
 
-            
-
             case "SUBSCRIBE":
+                String id=null;
+                String topic=null;
+                boolean hasEmptyLine=false;
+                if(lines.length!=3){
+                    HandleError("Wrong subscribe format- to many/not enough lines!");
+                    return;
+                }
+                for(String line:lines){
+                    if(line.startsWith("destination/topic/")){
+                        topic=line.substring(9).trim();
+                    }
+                    else if (line.startsWith("id:")){
+                        id=line.substring(3).trim();
+                    }
+                    else if(line.isEmpty()){
+                        hasEmptyLine=true;
+                    }
+                }
+                if(!hasEmptyLine){
+                    HandleError("Wrong frame format-missing an empty line!");
+                    return;
+                }
+                if(id==null || topic==null){
+                    HandleError("Missing ID or Destination headers");
+                    return;
+                }
+                boolean isNumeric = id.chars().allMatch(Character::isDigit);
+                if(!isNumeric){
+                    HandleError("ID must contain only numbers!");
+                }
+                int id_num = Integer.parseInt(id);
+                Subscriber sub=new Subscriber(connectionId, id_num);
+                //to continue
+             
+
+
                 break;
             case "UNSUBSCRIBE":
                 break;
