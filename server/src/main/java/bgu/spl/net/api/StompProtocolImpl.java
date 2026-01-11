@@ -152,6 +152,10 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                         HandleError("Wrong header/s for SEND frame!");
                         return;
                     }
+                    if(lines[3].length()!=0){
+                        HandleError("Wrong format- frame missing an empty line between header and body!");
+                        return;
+                    } 
                 }
                 
                 int j=1;
@@ -173,26 +177,18 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     HandleError("Given user isnt subscribed to given topic!");    
                     return;
                 } 
-                String toSend=null;
+                String toSend=message.substring(message.indexOf("\n\n")+2);
                 if(!frameHasReceipt){
-                    int firstLiner=message.indexOf('\n');
-                    int secondLiner=message.substring(firstLiner+1).indexOf('\n');
-                    int thirdLiner=message.substring(secondLiner+1).indexOf('\n');  //a way to find the body start index
-                    toSend=message.substring(thirdLiner+1);
                     connections.send(destination, toSend); // ConnectionsImpl will wrap toSend with MESSAGE text format
                 }
                 else{
-                    int firstLiner=message.indexOf('\n');
-                    int secondLiner=message.substring(firstLiner+1).indexOf('\n');
-                    int thirdLiner=message.substring(secondLiner+1).indexOf('\n');  //a way to find the body start index
-                    int fourthLiner=message.substring(thirdLiner+1).indexOf('\n');
-                    toSend=message.substring(fourthLiner+1); 
                     String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
                     connections.send(destination, toSend); // ConnectionsImpl will wrap toSend with MESSAGE text format
                     connections.send(connectionId, receiptResponse); 
                 }
                 break;
 
+                // #NOTE MUST CONSIDER A CASE WHERE USER ISNT EVEN CONNECTED!!
             case "SUBSCRIBE":      //////////////////////////////////////////////////////////////SUBSCRIBE
                 String sub_id=null;
                 String topic=null;
@@ -302,6 +298,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
 
                 
                 break;
+                // #NOTE MUST CONSIDER A CASE WHERE USER ISNT EVEN CONNECTED!!
             case "DISCONNECT":
                 if(!lines[1].startsWith("receipt:")){
                     HandleError("Disconnect frame must include receipt!");
