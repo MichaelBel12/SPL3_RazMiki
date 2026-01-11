@@ -2,6 +2,9 @@ package bgu.spl.net.api;
 
 import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
+
+import java.util.jar.Attributes.Name;
+
 import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.impl.data.LoginStatus;
 import bgu.spl.net.impl.data.Subscriber;
@@ -16,13 +19,13 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
     @Override
     public void start(int connectionId, Connections<String> connections) {
         this.connectionId = connectionId;
-        this.connections = (ConnectionsImpl)connections;
+        this.connections = connections;
     }
 
     @Override
     public void process(String message) {
         // Split the message into lines so we can check them one by one
-        String[] lines = message.split("\n");
+        String[] lines = message.split("\n", -1);
         if (lines.length < 1) {
             HandleError("Empty message");
             return;
@@ -34,20 +37,24 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 frameHasReceipt=true;
                 receiptID=line.substring(8).trim();
                 break;
+            }
+            if(line.isEmpty()){
+                break;
             }    
         }
         String command = lines[0].trim();
         switch (command) {
             case "CONNECT":
                 if(!frameHasReceipt){
+                    System.out.println("LINES LENGTH: "+lines.length);
                     if(lines.length!=6){
-                        HandleError("Wrong format- frame Has less/more lines than needed");
+                        HandleError("Wrong format1- frame Has less/more lines than needed");
                         return;
                     }
                 }
                 else{
                     if(lines.length!=7){
-                        HandleError("Wrong format- frame Has less/more lines than needed");
+                        HandleError("Wrong format 2- frame Has less/more lines than needed");
                         return;
                     }
                 }
@@ -171,8 +178,8 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     int firstLiner=message.indexOf('\n');
                     int secondLiner=message.substring(firstLiner+1).indexOf('\n');
                     int thirdLiner=message.substring(secondLiner+1).indexOf('\n');  //a way to find the body start index
-                    toSend=message.substring(thirdLiner+1); 
-                
+                    toSend=message.substring(thirdLiner+1);
+                    connections.send(destination, toSend); // ConnectionsImpl will wrap toSend with MESSAGE text format
                 }
                 else{
                     int firstLiner=message.indexOf('\n');
@@ -181,15 +188,13 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     int fourthLiner=message.substring(thirdLiner+1).indexOf('\n');
                     toSend=message.substring(fourthLiner+1); 
                     String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
-                
+                    connections.send(destination, toSend); // ConnectionsImpl will wrap toSend with MESSAGE text format
+                    connections.send(connectionId, receiptResponse); 
                 }
-                    
-                    //MUST ADD SUBSCRIBE ID TO STOMP!!!!!!!!!!!!!!!!!
-                
                 break;
-                //todo if sub has recepit gotta send him the receipt
+
             case "SUBSCRIBE":      //////////////////////////////////////////////////////////////SUBSCRIBE
-                String Sub_id=null;
+                String sub_id=null;
                 String topic=null;
                 boolean hasEmptyLine=false;
                 if(!frameHasReceipt){
@@ -207,7 +212,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                         topic=lines[i].substring(19).trim();
                     }
                     else if (lines[i].startsWith("id:")){
-                        Sub_id=lines[i].substring(3).trim();
+                        sub_id=lines[i].substring(3).trim();
                     }
                     else if(lines[i].isEmpty()){
                         hasEmptyLine=true;
@@ -217,28 +222,24 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     HandleError("Wrong frame format-missing an empty line!");
                     return;
                 }
-                if(Sub_id==null || topic==null){
+                if(sub_id==null || topic==null){
                     HandleError("Missing ID or Destination headers");
                     return;
                 }
-                boolean isNumeric = Sub_id.chars().allMatch(Character::isDigit);
+                boolean isNumeric = sub_id.chars().allMatch(Character::isDigit);
                 if(!isNumeric){
                     HandleError("ID must contain only numbers!");
                     return;
                 }
-                int subID_num = Integer.parseInt(Sub_id);
-                int topicID_isUnique=(((ConnectionsImpl)connections).topicContainsSubID(topic,subID_num));
-                if(topicID_isUnique==1){
-                    HandleError("Someone with this ID already subscribed to this topic!");
-                    return;
-                }
-                int alreadySubscribed=((ConnectionsImpl)connections).topicContainsUniqID(topic,subID_num);
+                int sub_num = Integer.parseInt(sub_id);
+                int alreadySubscribed=((ConnectionsImpl)connections).topicContainsUniqID(topic,sub_num);
                 if(alreadySubscribed==1){
                     HandleError("Client already subscribed to the channel!");
                     return;
                 }
-                 Subscriber sub=new Subscriber(connectionId, subID_num);
+                Subscriber sub=new Subscriber(connectionId, sub_num);
                 ((ConnectionsImpl)connections).addClientToTopic(sub,topic);
+
                 if(frameHasReceipt){
                     String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
                     connections.send(connectionId, receiptResponse);
@@ -253,8 +254,70 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
 
 
             case "UNSUBSCRIBE":
+                if(frameHasReceipt){
+                    if(lines.length !=4){
+                        HandleError("Unsubscribe format invalid");
+                        return;
+                    }
+                    if(!(lines[1].startsWith("id:") && lines[2].startsWith("receipt:")) ||
+                        !(lines[1].startsWith("receipt:") && lines[2].startsWith("id:"))){
+                            HandleError("Wrong headers for unsubscribe!");
+                            return;
+                        }
+                }
+                else if(lines.length != 3){
+                    HandleError("Unsubscribe format invalid");
+                    return;
+                }
+                if(!(lines[1].startsWith("id:") && lines[2].isEmpty())){
+                    HandleError("Wrong headers for unsubscribe!");
+                    return;
+                }
+                int k = 1;
+                if(lines[1].startsWith("receipt:")){
+                    k = 2;
+                }
+                String subs_id = lines[k].substring(3).trim();
+                if(subs_id.isEmpty()){
+                    HandleError("Invalid ID!");
+                    return;
+                }
+                boolean is_Numeric = subs_id.chars().allMatch(Character::isDigit);
+                if(!is_Numeric){
+                    HandleError("Invalid ID!");
+                    return;
+                }
+                int subs_int = Integer.parseInt(subs_id);
+                Subscriber subsc = new Subscriber(connectionId, subs_int);
+                boolean success = ((ConnectionsImpl)connections).findAndRemoveSub(subsc);
+                if(!success){
+                    HandleError("id is not subscribed to any topic");
+                    return;
+                }
+                if(frameHasReceipt){
+                    String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
+                    connections.send(connectionId, receiptResponse);
+                    return;
+                }
+
+                
                 break;
             case "DISCONNECT":
+                if(!lines[1].startsWith("receipt:")){
+                    HandleError("Disconnect frame must include receipt!");
+                    return;
+                }
+                if(lines.length!=3){
+                    HandleError("Invalid format - must be of required rows");
+                    return;
+                }
+                if(!lines[2].isEmpty()){
+                    HandleError("Invalid format - must have empty line");
+                }
+                String receipt_id = lines[1].substring(8).trim();
+                String receiptResponse="RECEIPT\nreceipt-id:"+receipt_id+"\n\n\u0000";
+                ((ConnectionsImpl)connections).disconnectDupe(connectionId, receiptResponse);
+                
                 break;
 
             default:   
@@ -275,5 +338,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
     }
 
 
-    public void HandleError(String s){}
+    public void HandleError(String s){
+        System.out.println("THIS IS THE MOTHER FUCKING ERROR: "+s);
+    }
 }
