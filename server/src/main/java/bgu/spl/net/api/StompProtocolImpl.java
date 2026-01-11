@@ -27,13 +27,31 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
             HandleError("Empty message");
             return;
         }
+        String receiptID=null;
+        boolean frameHasReceipt=false;
+        for(String line:lines){
+            if(line.startsWith("receipt:")){
+                frameHasReceipt=true;
+                receiptID=line.substring(8).trim();
+                break;
+            }    
+        }
         String command = lines[0].trim();
         switch (command) {
             case "CONNECT":
-                if(lines.length!=6){
-                    HandleError("Wrong format- frame Has less/more lines than needed");
-                    return;
+                if(!frameHasReceipt){
+                    if(lines.length!=6){
+                        HandleError("Wrong format- frame Has less/more lines than needed");
+                        return;
+                    }
                 }
+                else{
+                    if(lines.length!=7){
+                        HandleError("Wrong format- frame Has less/more lines than needed");
+                        return;
+                    }
+                }
+                
                 if (isConnected) {
                     HandleError("User is already connected!");
                     return;
@@ -79,68 +97,119 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 LoginStatus status = Database.getInstance().login(connectionId, username, password);
                 if (status == LoginStatus.LOGGED_IN_SUCCESSFULLY || status == LoginStatus.ADDED_NEW_USER) {
                     this.isConnected = true;
-                    String response = "CONNECTED\nversion:1.2\n\n\u0000";  //actual response to client
-                    connections.send(connectionId, response);
-                } else if (status == LoginStatus.WRONG_PASSWORD) {
+                    if(!frameHasReceipt){
+                        String response = "CONNECTED\nversion:1.2\n\n\u0000";  //actual response to client
+                        connections.send(connectionId, response);
+                    }
+                    else{
+                        String response = "CONNECTED\nversion:1.2\n\n\u0000";  //actual response to client
+                        String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
+                        connections.send(connectionId, response);
+                        connections.send(connectionId, receiptResponse);
+                    }
+                    
+                } 
+                else if (status == LoginStatus.WRONG_PASSWORD) {
                     HandleError("Wrong password!");
                     return;
-                } else if (status == LoginStatus.ALREADY_LOGGED_IN) {
+                }
+                else if (status == LoginStatus.ALREADY_LOGGED_IN) {
                     HandleError("User already logged in!");
                     return;
-                } else {
+                } 
+                else {
                     HandleError("Login failed!");
                     return;
                 }
+                
                 break;
 
-            case "SEND":
-                if(!lines[1].startsWith("destination:/topic/")){
-                    HandleError("Missing or wrong destination header");
-                    return;
+            case "SEND":    ///////////////////////////////////////////////////////////////////////////////send
+                if(!frameHasReceipt){
+                    if(lines.length<4)
+                        HandleError("Missing lines on SEND frame");
+                    if(!lines[1].startsWith("destination:/topic/")){
+                        HandleError("Missing or wrong destination header");
+                        return;
+                    }
+                    if(lines[2].length()!=0){
+                        HandleError("Wrong format- frame missing an empty line between header and body!");
+                        return;
+                    }      
                 }
-                if(lines[2].length()!=0){
-                     HandleError("Wrong format- frame missing an empty line between header and body!");
-                     return;
+                else{
+                    if(lines.length<5)
+                        HandleError("Missing lines on SEND frame");
+                    if(!(lines[1].startsWith("destination:/topic/")&&lines[2].startsWith("receipt:"))
+                        ||lines[1].startsWith("receipt:")&&lines[2].startsWith("destination:/topic/")){
+                        HandleError("Wrong header/s for SEND frame!");
+                        return;
+                    }
                 }
-                   
-                String destination= lines[1].substring(19).trim();
-                int validity=((ConnectionsImpl)connections).subContains(destination,connectionId);
+                
+                int j=1;
+                if(lines[2].startsWith("destination:/topic/")){
+                    j=2;
+                }
+                     
+                String destination= lines[j].substring(19).trim();
+                if(destination.length()==0){
+                    HandleError("Missing a topic!");
+                }
+                int validity=((ConnectionsImpl)connections).topicContainsUniqID(destination,connectionId);
                 if(validity==-1){
-                    HandleError("Given Subscription Channel does not exist!");
+                    HandleError("Given topic does not exist!");
                     return;
 
                 }
                 if (validity==0){
-                    HandleError("Given user isnt subscribed to given Channel!");    
+                    HandleError("Given user isnt subscribed to given topic!");    
                     return;
-                }  
+                } 
+                String toSend=null;
+                if(!frameHasReceipt){
+                    int firstLiner=message.indexOf('\n');
+                    int secondLiner=message.substring(firstLiner+1).indexOf('\n');
+                    int thirdLiner=message.substring(secondLiner+1).indexOf('\n');  //a way to find the body start index
+                    toSend=message.substring(thirdLiner+1); 
                 
+                }
                 else{
                     int firstLiner=message.indexOf('\n');
                     int secondLiner=message.substring(firstLiner+1).indexOf('\n');
                     int thirdLiner=message.substring(secondLiner+1).indexOf('\n');  //a way to find the body start index
-                    String toSend=message.substring(thirdLiner+1); 
-                    connections.send(destination, toSend); 
-                    //to add: what the servers sends to all the sub's clients from this message.
+                    int fourthLiner=message.substring(thirdLiner+1).indexOf('\n');
+                    toSend=message.substring(fourthLiner+1); 
+                    String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
+                
                 }
+                    
+                    //MUST ADD SUBSCRIBE ID TO STOMP!!!!!!!!!!!!!!!!!
+                
                 break;
-
-            case "SUBSCRIBE":
-                String id=null;
+                //todo if sub has recepit gotta send him the receipt
+            case "SUBSCRIBE":      //////////////////////////////////////////////////////////////SUBSCRIBE
+                String Sub_id=null;
                 String topic=null;
                 boolean hasEmptyLine=false;
-                if(lines.length!=3){
+                if(!frameHasReceipt){
+                    if(lines.length!=4){
+                        HandleError("Wrong subscribe format- to many/not enough lines!");
+                        return;
+                    }
+                }   
+                else if(lines.length!=5){
                     HandleError("Wrong subscribe format- to many/not enough lines!");
                     return;
-                }
-                for(String line:lines){
-                    if(line.startsWith("destination/topic/")){
-                        topic=line.substring(9).trim();
+                } 
+                for(int i=1;i<lines.length;i++){
+                    if(lines[i].startsWith("destination:/topic/")){
+                        topic=lines[i].substring(19).trim();
                     }
-                    else if (line.startsWith("id:")){
-                        id=line.substring(3).trim();
+                    else if (lines[i].startsWith("id:")){
+                        Sub_id=lines[i].substring(3).trim();
                     }
-                    else if(line.isEmpty()){
+                    else if(lines[i].isEmpty()){
                         hasEmptyLine=true;
                     }
                 }
@@ -148,27 +217,49 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     HandleError("Wrong frame format-missing an empty line!");
                     return;
                 }
-                if(id==null || topic==null){
+                if(Sub_id==null || topic==null){
                     HandleError("Missing ID or Destination headers");
                     return;
                 }
-                boolean isNumeric = id.chars().allMatch(Character::isDigit);
+                boolean isNumeric = Sub_id.chars().allMatch(Character::isDigit);
                 if(!isNumeric){
                     HandleError("ID must contain only numbers!");
+                    return;
                 }
-                int id_num = Integer.parseInt(id);
-                Subscriber sub=new Subscriber(connectionId, id_num);
-                //to continue
-             
-
-
+                int subID_num = Integer.parseInt(Sub_id);
+                int topicID_isUnique=(((ConnectionsImpl)connections).topicContainsSubID(topic,subID_num));
+                if(topicID_isUnique==1){
+                    HandleError("Someone with this ID already subscribed to this topic!");
+                    return;
+                }
+                int alreadySubscribed=((ConnectionsImpl)connections).topicContainsUniqID(topic,subID_num);
+                if(alreadySubscribed==1){
+                    HandleError("Client already subscribed to the channel!");
+                    return;
+                }
+                 Subscriber sub=new Subscriber(connectionId, subID_num);
+                ((ConnectionsImpl)connections).addClientToTopic(sub,topic);
+                if(frameHasReceipt){
+                    String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
+                    connections.send(connectionId, receiptResponse);
+                }
                 break;
+
+
+
+
+
+
+
+
             case "UNSUBSCRIBE":
                 break;
             case "DISCONNECT":
                 break;
 
-
+            default:   
+                HandleError("Invalid Command!"); 
+                break;
 
 
 
