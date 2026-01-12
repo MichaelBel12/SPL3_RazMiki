@@ -1,9 +1,12 @@
 package bgu.spl.net.api;
 
+import bgu.spl.net.srv.ConnectionHandler;
 import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
 
 import java.util.jar.Attributes.Name;
+
+import javax.xml.crypto.Data;
 
 import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.impl.data.LoginStatus;
@@ -132,6 +135,9 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 break;
 
             case "SEND":    ///////////////////////////////////////////////////////////////////////////////send
+            if(!(Database.getInstance().getUserByConnectionId(connectionId)).isLoggedIn()){
+                    HandleError("User is not connected to the system!");
+                }
                 if(!frameHasReceipt){
                     if(lines.length<4)
                         HandleError("Missing lines on SEND frame");
@@ -188,8 +194,11 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 break;
 
-                // #NOTE MUST CONSIDER A CASE WHERE USER ISNT EVEN CONNECTED!!
+                
             case "SUBSCRIBE":      //////////////////////////////////////////////////////////////SUBSCRIBE
+                if(!(Database.getInstance().getUserByConnectionId(connectionId)).isLoggedIn()){
+                    HandleError("User is not connected to the system!");
+                }
                 String sub_id=null;
                 String topic=null;
                 boolean hasEmptyLine=false;
@@ -233,9 +242,9 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     HandleError("Client already subscribed to the channel!");
                     return;
                 }
-                Subscriber sub=new Subscriber(connectionId, sub_num);
+                Subscriber sub=new Subscriber(connectionId, sub_num,topic);
                 ((ConnectionsImpl)connections).addClientToTopic(sub,topic);
-
+                Database.getInstance().getUserByConnectionId(connectionId).addToSubsList(sub);
                 if(frameHasReceipt){
                     String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
                     connections.send(connectionId, receiptResponse);
@@ -244,12 +253,10 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
 
 
 
-
-
-
-
-
-            case "UNSUBSCRIBE":
+            case "UNSUBSCRIBE":            //////////////////////////////////////////////////////////////////////UNSUB
+                if(!(Database.getInstance().getUserByConnectionId(connectionId)).isLoggedIn()){
+                    HandleError("User is not connected to the system!");
+                }
                 if(frameHasReceipt){
                     if(lines.length !=4){
                         HandleError("Unsubscribe format invalid");
@@ -284,10 +291,10 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     return;
                 }
                 int subs_int = Integer.parseInt(subs_id);
-                Subscriber subsc = new Subscriber(connectionId, subs_int);
-                boolean success = ((ConnectionsImpl)connections).findAndRemoveSub(subsc);
+                Database.getInstance().getUserByConnectionId(connectionId).removeSubFromList(subs_int);
+                boolean success = ((ConnectionsImpl)connections).findAndRemoveSub(connectionId, subs_int);
                 if(!success){
-                    HandleError("id is not subscribed to any topic");
+                    HandleError("this user with given id is not subscribed to any topic");
                     return;
                 }
                 if(frameHasReceipt){
@@ -295,11 +302,12 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     connections.send(connectionId, receiptResponse);
                     return;
                 }
-
-                
                 break;
-                // #NOTE MUST CONSIDER A CASE WHERE USER ISNT EVEN CONNECTED!!
+               
             case "DISCONNECT":
+                if(!(Database.getInstance().getUserByConnectionId(connectionId)).isLoggedIn()){
+                    HandleError("User is not connected to the system!");
+                }
                 if(!lines[1].startsWith("receipt:")){
                     HandleError("Disconnect frame must include receipt!");
                     return;
@@ -313,16 +321,17 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 String receipt_id = lines[1].substring(8).trim();
                 String receiptResponse="RECEIPT\nreceipt-id:"+receipt_id+"\n\n\u0000";
-                ((ConnectionsImpl)connections).disconnectDupe(connectionId, receiptResponse);
-                
+                Database.getInstance().getUserByConnectionId(connectionId).clearAllSubs();
+                ((ConnectionsImpl)connections).disconnect(connectionId);
+                ConnectionHandler<String> handler=((ConnectionsImpl)connections).getHandler(connectionId);
+                Database.getInstance().logout(connectionId);
+                handler.send(receiptResponse);
+                shouldTerminate = true;
                 break;
 
             default:   
-                HandleError("Invalid Command!"); 
+                HandleError("Invalid Command!");
                 break;
-
-
-
             }
         }
 

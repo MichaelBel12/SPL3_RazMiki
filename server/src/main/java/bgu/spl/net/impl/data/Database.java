@@ -248,6 +248,10 @@ private String repeat(String str, int times) {
 	return sb.toString();
 }
 
+public User getUserByConnectionId(int connectionId) {
+	return connectionsIdMap.get(connectionId);
+}
+
 private static class Instance {
 	static Database instance = new Database();
 }}

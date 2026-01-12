@@ -2,10 +2,12 @@ package bgu.spl.net.srv;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-
+import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.impl.data.Subscriber;
-import java.util.Map;
+
 import java.util.LinkedList;
+import java.util.Map;
+import bgu.spl.net.impl.data.User;
 
 public class ConnectionsImpl<T> implements Connections<T> {
     private final Map<Integer, ConnectionHandler<T>> activeClients = new ConcurrentHashMap<>();
@@ -35,23 +37,21 @@ public class ConnectionsImpl<T> implements Connections<T> {
     }
 
     
-    public void disconnect(int connectionId) {
-        Subscriber mySub = null;
+    public void disconnect(int connectionId) {  //we're not using this anyways
+       Subscriber mySub = null;
         ConnectionHandler<T> handler = activeClients.get(connectionId);
         activeClients.remove(connectionId);
-        for (CopyOnWriteArraySet<Subscriber> subscribers : channelSubscriptions.values()) {
+        for(CopyOnWriteArraySet<Subscriber> subscribers : channelSubscriptions.values()){    //removing my subs from all topics 
             for(Subscriber sub:subscribers){
-                if (sub.getUniqID()==connectionId){   // finding the subscriber object of connectionId
-                    mySub = sub;
-                    break;
+                if(sub.getSubID()==connectionId){
+                    subscribers.remove(sub);
                 }
             }
         }
-        if(mySub != null){
-            LinkedList<String> myTopics = mySub.getTopics();
-            for(String topic : myTopics){
-                channelSubscriptions.get(topic).remove(mySub); // To save dear time, we iterate less channels.
-            }
+        User myUser = Database.getInstance().getUserByConnectionId(connectionId); //clearing the user's subscriptions list
+        LinkedList<Subscriber> subsList = myUser.getSubsList();
+        for(Subscriber sub:subsList){
+            subsList.remove(sub);
         }
     }
     
@@ -69,12 +69,10 @@ public class ConnectionsImpl<T> implements Connections<T> {
     public void addClientToTopic(Subscriber sub,String topic){
         if(channelSubscriptions.containsKey(topic)){
             channelSubscriptions.get(topic).add(sub);
-            sub.addTopic(topic); //adds topic to client personal list
             return;
         }
         channelSubscriptions.put(topic,new CopyOnWriteArraySet<Subscriber>());
         channelSubscriptions.get(topic).add(sub);
-        sub.addTopic(topic);
     }
 
     public int topicContainsUniqID(String topic,int connectionID){
@@ -90,35 +88,47 @@ public class ConnectionsImpl<T> implements Connections<T> {
         return 0;    //topic exists, doesnt contain client    
     }
 
-    public boolean findAndRemoveSub(Subscriber sub){
-        LinkedList<String> myTopics = sub.getTopics();
-        for(String topic : myTopics){
-            if(channelSubscriptions.get(topic).contains(sub)){ //sub id is unique per client across all topics
-                channelSubscriptions.get(topic).remove(sub);
+    public boolean findAndRemoveSub(int uniqID,int subID){ //for unsubscribe
+        LinkedList<Subscriber> subsList = Database.getInstance().getUserByConnectionId(uniqID).getSubsList();
+        String topic=null;
+        for(Subscriber sub:subsList){
+            if(sub.getSubID()==subID){
+                topic=sub.getTopic();
+                CopyOnWriteArraySet<Subscriber> set = channelSubscriptions.get(topic);
+                set.remove(sub);
                 return true;
             }
+        
         }
         return false;
     }
+        
 
-    public void disconnectDupe(int connectionId, T msg) { // DUPLICATE TO SEND DISCONNECT + SEND IN CORRECT ORDER
+    public void disconnectDupe(int connectionId, T msg) { // Wont useeee
         Subscriber mySub = null;
         ConnectionHandler<T> handler = activeClients.get(connectionId);
         activeClients.remove(connectionId);
-        for (CopyOnWriteArraySet<Subscriber> subscribers : channelSubscriptions.values()) {
+        for(CopyOnWriteArraySet<Subscriber> subscribers : channelSubscriptions.values()){    //removing my subs from all topics 
             for(Subscriber sub:subscribers){
-                if (sub.getUniqID()==connectionId){   // finding the subscriber object of connectionId
-                    mySub = sub;
-                    break;
+                if(sub.getSubID()==connectionId){
+                    subscribers.remove(sub);
                 }
             }
         }
-        if(mySub != null){
-            LinkedList<String> myTopics = mySub.getTopics();
-            for(String topic : myTopics){
-                channelSubscriptions.get(topic).remove(mySub); // To save dear time, we iterate less channels.
-            }
+        User myUser = Database.getInstance().getUserByConnectionId(connectionId); //clearing the user's subscriptions list
+        LinkedList<Subscriber> subsList = myUser.getSubsList();
+        for(Subscriber sub:subsList){
+            subsList.remove(sub);
         }
         handler.send(msg);
+    }
+
+
+    public boolean userIsConnected(int id){
+        return activeClients.containsKey(id);
+    }
+
+    public ConnectionHandler<T> getHandler(int id){
+        return activeClients.get(id);
     }
 }

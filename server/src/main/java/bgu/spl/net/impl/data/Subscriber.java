@@ -1,26 +1,23 @@
 package bgu.spl.net.impl.data;
 
-import java.util.LinkedList;
 
 public class Subscriber {
     private int uniqID;
     private int subID;
-    private LinkedList<String> myTopics = new LinkedList<>();
-    public Subscriber(int Uniq,int sub){
+    private String myTopic;
+    
+    public Subscriber(int Uniq,int sub,String topic){
         uniqID=Uniq;
         subID=sub;
+        myTopic=topic;
     }
+
 
     public int getUniqID(){return uniqID;}
 
     public int getSubID(){return subID;}
 
-    public void addTopic(String topic){
-        myTopics.add(topic);
-    }
-    public LinkedList<String> getTopics(){
-        return myTopics;
-    }
+    public String getTopic(){return myTopic;}
 
     @Override
     public boolean equals(Object other){
@@ -31,5 +28,6 @@ public class Subscriber {
         }
         return false;
     }
+
 
 }

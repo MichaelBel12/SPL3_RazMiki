@@ -1,11 +1,11 @@
 package bgu.spl.net.impl.data;
-
+import java.util.LinkedList;
 public class User {
 	public final String name;
 	public final String password;
 	private int connectionId;
 	private boolean isLoggedIn = false;
-	
+	private LinkedList<Subscriber> mySubs;
 
 	public User(int connectionId, String name, String password) {
 		this.connectionId = connectionId;
@@ -33,5 +33,23 @@ public class User {
 		this.connectionId = connectionId;
 	}
 
+	public LinkedList<Subscriber> getSubsList(){
+		return mySubs;
+	}
+	public void addToSubsList(Subscriber sub){
+		mySubs.add(sub);
+	}
+	public void removeSubFromList(int subID){
+		for(Subscriber sub:mySubs){
+			if (sub.getSubID()==subID){
+				mySubs.remove(sub);
+			}
+		}
+	}
+	public void clearAllSubs(){ //only for disconnect
+		for(Subscriber sub:mySubs){
+			mySubs.remove(sub);
+		}
+	}
 
 }
