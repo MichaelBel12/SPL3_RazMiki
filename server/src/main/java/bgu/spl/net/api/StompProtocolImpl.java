@@ -141,7 +141,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 if(!frameHasReceipt){
                     if(lines.length<4)
                         HandleError("Missing lines on SEND frame");
-                    if(!lines[1].startsWith("destination:/topic/")){
+                    if(!lines[1].startsWith("destination:/")){
                         HandleError("Missing or wrong destination header");
                         return;
                     }
@@ -153,8 +153,8 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 else{
                     if(lines.length<5)
                         HandleError("Missing lines on SEND frame");
-                    if(!(lines[1].startsWith("destination:/topic/")&&lines[2].startsWith("receipt:"))
-                        ||lines[1].startsWith("receipt:")&&lines[2].startsWith("destination:/topic/")){
+                    if(!(lines[1].startsWith("destination:/")&&lines[2].startsWith("receipt:"))
+                        ||lines[1].startsWith("receipt:")&&lines[2].startsWith("destination:/")){
                         HandleError("Wrong header/s for SEND frame!");
                         return;
                     }
@@ -165,11 +165,11 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 
                 int j=1;
-                if(lines[2].startsWith("destination:/topic/")){
+                if(lines[2].startsWith("destination:/")){
                     j=2;
                 }
                      
-                String destination= lines[j].substring(19).trim();
+                String destination= lines[j].substring(13).trim();
                 if(destination.length()==0){
                     HandleError("Missing a topic!");
                 }
@@ -213,8 +213,8 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     return;
                 } 
                 for(int i=1;i<lines.length;i++){
-                    if(lines[i].startsWith("destination:/topic/")){
-                        topic=lines[i].substring(19).trim();
+                    if(lines[i].startsWith("destination:/")){
+                        topic=lines[i].substring(13).trim();
                     }
                     else if (lines[i].startsWith("id:")){
                         sub_id=lines[i].substring(3).trim();
@@ -322,10 +322,9 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 String receipt_id = lines[1].substring(8).trim();
                 String receiptResponse="RECEIPT\nreceipt-id:"+receipt_id+"\n\n\u0000";
                 Database.getInstance().getUserByConnectionId(connectionId).clearAllSubs();
+                connections.send(connectionId, receiptResponse);
                 ((ConnectionsImpl)connections).disconnect(connectionId);
-                ConnectionHandler<String> handler=((ConnectionsImpl)connections).getHandler(connectionId);
                 Database.getInstance().logout(connectionId);
-                handler.send(receiptResponse);
                 shouldTerminate = true;
                 break;
 

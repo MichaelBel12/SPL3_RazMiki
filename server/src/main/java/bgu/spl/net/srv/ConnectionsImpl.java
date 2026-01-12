@@ -37,7 +37,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
     }
 
     
-    public void disconnect(int connectionId) {  //we're not using this anyways
+    public void disconnect(int connectionId) {  
        Subscriber mySub = null;
         ConnectionHandler<T> handler = activeClients.get(connectionId);
         activeClients.remove(connectionId);
@@ -104,7 +104,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
     }
         
 
-    public void disconnectDupe(int connectionId, T msg) { // Wont useeee
+    public void disconnectWithReceipt(int connectionId, T msg) { // Wont useeee
         Subscriber mySub = null;
         ConnectionHandler<T> handler = activeClients.get(connectionId);
         activeClients.remove(connectionId);
@@ -122,7 +122,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
         }
         handler.send(msg);
     }
-
+    
 
     public boolean userIsConnected(int id){
         return activeClients.containsKey(id);
