@@ -152,19 +152,16 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 else{
                     if(lines.length<5){
-                        HandleError("Missing lines on SEND frame");
-                        HandleError(command,"Invalid Command!",receiptID,message);
+                        HandleError(command,"Missing lines on SEND frame",receiptID,message);
                     }
                        
                     if(!(lines[1].startsWith("destination:/")&&lines[2].startsWith("receipt:"))
                         ||lines[1].startsWith("receipt:")&&lines[2].startsWith("destination:/")){
-                        HandleError("Wrong header/s for SEND frame!");
-                         HandleError(command,"Invalid Command!",receiptID,message);
+                         HandleError(command,"Wrong header/s for SEND frame!",receiptID,message);
                         return;
                     }
                     if(lines[3].length()!=0){
-                        HandleError("Wrong format- frame missing an empty line between header and body!");
-                         HandleError(command,"Invalid Command!",receiptID,message);
+                         HandleError(command,"Wrong format- frame missing an empty line between header and body!",receiptID,message);
                         return;
                     } 
                 }
@@ -176,19 +173,16 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                      
                 String destination= lines[j].substring(13).trim();
                 if(destination.length()==0){
-                    HandleError("Missing a topic!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Missing a topic!",receiptID,message);
                 }
                 int validity=((ConnectionsImpl)connections).topicContainsUniqID(destination,connectionId);
                 if(validity==-1){
-                    HandleError("Given topic does not exist!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Given topic does not exist!",receiptID,message);
                     return;
 
                 }
-                if (validity==0){
-                    HandleError("Given user isnt subscribed to given topic!"); 
-                     HandleError(command,"Invalid Command!",receiptID,message);   
+                if (validity==0){ 
+                     HandleError(command,"Given user isnt subscribed to given topic!",receiptID,message);   
                     return;
                 } 
                 String toSend=message.substring(message.indexOf("\n\n")+2);
@@ -205,22 +199,19 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 
             case "SUBSCRIBE":      //////////////////////////////////////////////////////////////SUBSCRIBE
                 if(!(Database.getInstance().getUserByConnectionId(connectionId)).isLoggedIn()){
-                    HandleError("User is not connected to the system!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"User is not connected to the system!",receiptID,message);
                 }
                 String sub_id=null;
                 String topic=null;
                 boolean hasEmptyLine=false;
                 if(!frameHasReceipt){
                     if(lines.length!=4){
-                        HandleError("Wrong subscribe format- to many/not enough lines!");
-                         HandleError(command,"Invalid Command!",receiptID,message);
+                         HandleError(command,"Wrong subscribe format- to many/not enough lines!",receiptID,message);
                         return;
                     }
                 }   
                 else if(lines.length!=5){
-                    HandleError("Wrong subscribe format- to many/not enough lines!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Wrong subscribe format- to many/not enough lines!",receiptID,message);
                     return;
                 } 
                 for(int i=1;i<lines.length;i++){
@@ -235,26 +226,22 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     }
                 }
                 if(!hasEmptyLine){
-                    HandleError("Wrong frame format-missing an empty line!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Wrong frame format-missing an empty line!",receiptID,message);
                     return;
                 }
                 if(sub_id==null || topic==null){
-                    HandleError("Missing ID or Destination headers");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Missing ID or Destination headers",receiptID,message);
                     return;
                 }
                 boolean isNumeric = sub_id.chars().allMatch(Character::isDigit);
                 if(!isNumeric){
-                    HandleError("ID must contain only numbers!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"ID must contain only numbers!",receiptID,message);
                     return;
                 }
                 int sub_num = Integer.parseInt(sub_id);
                 int alreadySubscribed=((ConnectionsImpl)connections).topicContainsUniqID(topic,sub_num);
                 if(alreadySubscribed==1){
-                    HandleError("Client already subscribed to the channel!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Client already subscribed to the channel!",receiptID,message);
                     return;
                 }
                 Subscriber sub=new Subscriber(connectionId, sub_num,topic);
@@ -268,30 +255,25 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
 
             case "UNSUBSCRIBE":            //////////////////////////////////////////////////////////////////////UNSUB
                 if(!(Database.getInstance().getUserByConnectionId(connectionId)).isLoggedIn()){
-                    HandleError("User is not connected to the system!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"User is not connected to the system!",receiptID,message);
                 }
                 if(frameHasReceipt){
                     if(lines.length !=4){
-                        HandleError("Unsubscribe format invalid");
-                         HandleError(command,"Invalid Command!",receiptID,message);
+                         HandleError(command,"Unsubscribe format invalid",receiptID,message);
                         return;
                     }
                     if(!(lines[1].startsWith("id:") && lines[2].startsWith("receipt:")) ||
                         !(lines[1].startsWith("receipt:") && lines[2].startsWith("id:"))){
-                            HandleError("Wrong headers for unsubscribe!");
-                             HandleError(command,"Invalid Command!",receiptID,message);
+                             HandleError(command,"Wrong headers for unsubscribe!",receiptID,message);
                             return;
                         }
                 }
                 else if(lines.length != 3){
-                    HandleError("Unsubscribe format invalid");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Unsubscribe format invalid",receiptID,message);
                     return;
                 }
                 if(!(lines[1].startsWith("id:") && lines[2].isEmpty())){
-                    HandleError("Wrong headers for unsubscribe!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Wrong headers for unsubscribe!",receiptID,message);
                     return;
                 }
                 int k = 1;
@@ -300,22 +282,19 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 String subs_id = lines[k].substring(3).trim();
                 if(subs_id.isEmpty()){
-                    HandleError("Invalid ID!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Invalid ID!",receiptID,message);
                     return;
                 }
                 boolean is_Numeric = subs_id.chars().allMatch(Character::isDigit);
                 if(!is_Numeric){
-                    HandleError("Invalid ID!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Invalid ID!",receiptID,message);
                     return;
                 }
                 int subs_int = Integer.parseInt(subs_id);
                 Database.getInstance().getUserByConnectionId(connectionId).removeSubFromList(subs_int);
                 boolean success = ((ConnectionsImpl)connections).findAndRemoveSub(connectionId, subs_int);
                 if(!success){
-                    HandleError("this user with given id is not subscribed to any topic");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"this user with given id is not subscribed to any topic",receiptID,message);
                     return;
                 }
                 if(frameHasReceipt){
@@ -327,17 +306,14 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                
             case "DISCONNECT":
                 if(!(Database.getInstance().getUserByConnectionId(connectionId)).isLoggedIn()){
-                    HandleError("User is not connected to the system!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"User is not connected to the system!",receiptID,message);
                 }
                 if(!lines[1].startsWith("receipt:")){
-                    HandleError("Disconnect frame must include receipt!");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Disconnect frame must include receipt!",receiptID,message);
                     return;
                 }
                 if(lines.length!=3){
-                    HandleError("Invalid format - must be of required rows");
-                     HandleError(command,"Invalid Command!",receiptID,message);
+                     HandleError(command,"Invalid format - must be of required rows",receiptID,message);
                     return;
                 }
                 if(!lines[2].isEmpty()){
