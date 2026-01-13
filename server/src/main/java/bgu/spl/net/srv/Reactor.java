@@ -17,24 +17,38 @@ import java.util.function.Supplier;
 public class Reactor<T> implements Server<T> {
 
     private final int port;
-    private final Supplier<StompMessagingProtocol<T>> protocolFactory;
+    private final Supplier<StompMessagingProtocol<T>> stompFactory;
+    private final Supplier<MessagingProtocol<T>> msgFactory;
     private final Supplier<MessageEncoderDecoder<T>> readerFactory;
     private final ActorThreadPool pool;
     private Selector selector;
     private ConnectionsImpl<T> connections;
-
+    private boolean isStomp=false;
     private Thread selectorThread;
     private final ConcurrentLinkedQueue<Runnable> selectorTasks = new ConcurrentLinkedQueue<>();
 
     public Reactor(
-            int numThreads,
+            boolean stomp,int numThreads,
             int port,
             Supplier<StompMessagingProtocol<T>> protocolFactory,
             Supplier<MessageEncoderDecoder<T>> readerFactory) {
-
         this.pool = new ActorThreadPool(numThreads);
         this.port = port;
-        this.protocolFactory = protocolFactory;
+        this.stompFactory = protocolFactory;
+        this.readerFactory = readerFactory;
+        this.connections=new ConnectionsImpl<>();
+        this.isStomp=true;
+        this.msgFactory=null;
+    }
+    public Reactor(
+            int numThreads,
+            int port,
+            Supplier<MessagingProtocol<T>> protocolFactory,
+            Supplier<MessageEncoderDecoder<T>> readerFactory) {
+        this.stompFactory=null;
+        this.pool = new ActorThreadPool(numThreads);
+        this.port = port;
+        this.msgFactory = protocolFactory;
         this.readerFactory = readerFactory;
         this.connections=new ConnectionsImpl<>();
     }
@@ -101,20 +115,31 @@ public class Reactor<T> implements Server<T> {
         SocketChannel clientChan = serverChan.accept();
         clientChan.configureBlocking(false);
         int id=connections.newUniqID();
-        final NonBlockingConnectionHandler<T> handler = new NonBlockingConnectionHandler<T>(
+        if(isStomp){
+            final NonBlockingStompHandler<T> handler = new NonBlockingStompHandler<T>(
                 readerFactory.get(),
-                protocolFactory.get(),
+                stompFactory.get(),
                 clientChan,
                 this,id,connections);
         connections.addClientToActiveClients(id, handler);
         clientChan.register(selector, SelectionKey.OP_READ, handler);
+        }
+        else{
+            final NonBlockingConnectionHandler<T> handler = new NonBlockingConnectionHandler<T>(
+                readerFactory.get(),
+                msgFactory.get(),
+                clientChan,
+                this,id,connections);
+        clientChan.register(selector, SelectionKey.OP_READ, handler);
+        }
+        
     }
 
     private void handleReadWrite(SelectionKey key) {
-        @SuppressWarnings("unchecked")
-        NonBlockingConnectionHandler<T> handler = (NonBlockingConnectionHandler<T>) key.attachment();
-
-        if (key.isReadable()) {
+        if(!isStomp){
+            @SuppressWarnings("unchecked")
+           NonBlockingConnectionHandler<T> handler = (NonBlockingConnectionHandler<T>) key.attachment();
+           if (key.isReadable()) {
             Runnable task = handler.continueRead();
             if (task != null) {
                 pool.submit(handler, task);
@@ -123,6 +148,22 @@ public class Reactor<T> implements Server<T> {
 
 	    if (key.isValid() && key.isWritable()) {
             handler.continueWrite();
+        }
+        }
+
+        else{
+            @SuppressWarnings("unchecked")
+            NonBlockingStompHandler<T> handler=(NonBlockingStompHandler<T>) key.attachment();
+            if (key.isReadable()) {
+            Runnable task = handler.continueRead();
+            if (task != null) {
+                pool.submit(handler, task);
+            }
+        }
+
+	    if (key.isValid() && key.isWritable()) {
+            handler.continueWrite();
+        }
         }
     }
 

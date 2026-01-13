@@ -23,18 +23,39 @@ public interface Server<T> extends Closeable {
      * @return A new Thread per client server
      */
     public static <T> Server<T>  threadPerClient(
-            int port,
+            boolean isStomp,int port,
             Supplier<StompMessagingProtocol<T> > protocolFactory,
             Supplier<MessageEncoderDecoder<T> > encoderDecoderFactory) {
 
-        return new BaseServer<T>(port,protocolFactory, encoderDecoderFactory) {
+        return new BaseServer<T>(true,port,protocolFactory, encoderDecoderFactory) {
             @Override
-            protected void execute(BlockingConnectionHandler<T>  handler) {
+            protected void execute(BlockingStompHandler<T>  handler) {
                 new Thread(handler).start();
             }
+            @Override
+            protected void execute(BlockingConnectionHandler<T>  handler) {
+                //wont use
+            }
         };
-        
     }
+
+    public static <T> Server<T>  threadPerClient(
+        int port,
+        Supplier<MessagingProtocol<T> > protocolFactory,
+        Supplier<MessageEncoderDecoder<T> > encoderDecoderFactory) {
+
+    return new BaseServer<T>(port,protocolFactory, encoderDecoderFactory) {
+        @Override
+        protected void execute(BlockingStompHandler<T>  handler) {
+            //wont use 
+        }
+        @Override
+        protected void execute(BlockingConnectionHandler<T>  handler) {
+            new Thread(handler).start();
+        }
+    };
+    
+}
 
     /**
      * This function returns a new instance of a reactor pattern server
@@ -46,9 +67,17 @@ public interface Server<T> extends Closeable {
      * @return A new reactor server
      */
     public static <T> Server<T> reactor(
+            boolean isStomp,
             int nthreads,
             int port,
             Supplier<StompMessagingProtocol<T>> protocolFactory,
+            Supplier<MessageEncoderDecoder<T>> encoderDecoderFactory) {
+        return new Reactor<T>(true,nthreads, port, protocolFactory, encoderDecoderFactory);
+    }
+    public static <T> Server<T> reactor(
+            int nthreads,
+            int port,
+            Supplier<MessagingProtocol<T>> protocolFactory,
             Supplier<MessageEncoderDecoder<T>> encoderDecoderFactory) {
         return new Reactor<T>(nthreads, port, protocolFactory, encoderDecoderFactory);
     }

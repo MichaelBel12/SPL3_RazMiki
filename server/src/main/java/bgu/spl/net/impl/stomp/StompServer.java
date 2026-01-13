@@ -23,18 +23,20 @@ public class StompServer {
         if (serverType.equalsIgnoreCase("tpc")) {
             // Thread-Per-Client server
             Server.threadPerClient(
+                    true,
                     port,
                     ()->new StompProtocolImpl(),   
-                    StompEncDec::new 
+                    ()->new StompEncDec()
             ).serve();
 
         } else if (serverType.equalsIgnoreCase("reactor")) {
             // Reactor server
             Server.reactor(
+                    true,
                     Runtime.getRuntime().availableProcessors(), 
                     port,
                     ()->new StompProtocolImpl(),   
-                    StompEncDec::new 
+                    ()->new StompEncDec()
             ).serve();
 
         } else {

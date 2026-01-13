@@ -2,7 +2,8 @@ package bgu.spl.net.srv;
 
 import bgu.spl.net.api.MessageEncoderDecoder;
 import bgu.spl.net.api.MessagingProtocol;
-import bgu.spl.net.api.StompMessagingProtocol;
+import bgu.spl.net.api.StompProtocolImpl;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -15,19 +16,29 @@ public class NonBlockingConnectionHandler<T> implements ConnectionHandler<T> {
     private static final int BUFFER_ALLOCATION_SIZE = 1 << 13; //8k
     private static final ConcurrentLinkedQueue<ByteBuffer> BUFFER_POOL = new ConcurrentLinkedQueue<>();
 
-    private final StompMessagingProtocol<T> protocol;
+    private final MessagingProtocol<T> protocol;
     private final MessageEncoderDecoder<T> encdec;
     private final Queue<ByteBuffer> writeQueue = new ConcurrentLinkedQueue<>();
     private final SocketChannel chan;
     private final Reactor reactor;
     private int id;
     private ConnectionsImpl<T> myConnections;
-    private boolean initialized = false;
     
 
     public NonBlockingConnectionHandler(
             MessageEncoderDecoder<T> reader,
-            StompMessagingProtocol<T> protocol,
+            MessagingProtocol<T> protocol,
+            SocketChannel chan,
+            Reactor reactor) {
+        this.chan = chan;
+        this.encdec = reader;
+        this.protocol = protocol;
+        this.reactor = reactor;
+    }
+
+    public NonBlockingConnectionHandler(
+            MessageEncoderDecoder<T> reader,
+            MessagingProtocol<T> protocol,
             SocketChannel chan,
             Reactor<T> reactor,int id,ConnectionsImpl<T> myConnections) {
         this.chan = chan;
@@ -52,14 +63,14 @@ public class NonBlockingConnectionHandler<T> implements ConnectionHandler<T> {
             buf.flip();
             return () -> {
                 try {
-                    if(!initialized){
-                        protocol.start(id, myConnections);
-                        initialized=true;
-                    }
                     while (buf.hasRemaining()) {
                         T nextMessage = encdec.decodeNextByte(buf.get());
                         if (nextMessage != null) {
-                            protocol.process(nextMessage);
+                            T response = protocol.process(nextMessage);
+                            if (response != null) {
+                                writeQueue.add(ByteBuffer.wrap(encdec.encode(response)));
+                                reactor.updateInterestedOps(chan, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+                            }
                         }
                     }
                 } finally {

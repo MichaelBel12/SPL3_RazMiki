@@ -14,11 +14,13 @@ public abstract class BaseServer<T> implements Server<T> {
     private final int port;
     private final Supplier<StompMessagingProtocol<T>> stompProtocolFactory;
     private final Supplier<MessageEncoderDecoder<T>> encdecFactory;
+    private final Supplier<MessagingProtocol<T>> protocolFactory;
     private ServerSocket sock;
     private ConnectionsImpl<T> connections; 
+    private boolean isStomp=false;
 
     public BaseServer(
-            int port,
+            boolean isStomp,int port,
             Supplier<StompMessagingProtocol<T>> stompProtocolFactory,
             Supplier<MessageEncoderDecoder<T>> encdecFactory) {
         this.stompProtocolFactory=stompProtocolFactory;
@@ -26,6 +28,19 @@ public abstract class BaseServer<T> implements Server<T> {
         this.encdecFactory = encdecFactory;
 		this.sock = null;
         this.connections=new ConnectionsImpl<>();
+        protocolFactory=null;
+        this.isStomp=true;
+    }
+    public BaseServer(
+            int port,
+            Supplier<MessagingProtocol<T>> msgFactory,
+            Supplier<MessageEncoderDecoder<T>> encdecFactory) {
+        this.protocolFactory=msgFactory;
+        this.port = port;
+        this.encdecFactory = encdecFactory;
+		this.sock = null;
+        this.connections=new ConnectionsImpl<>();
+        this.stompProtocolFactory=null;
     }
 
 
@@ -41,12 +56,23 @@ public abstract class BaseServer<T> implements Server<T> {
             while (!Thread.currentThread().isInterrupted()) {
                 Socket clientSock = serverSock.accept();
                 int uniqID=connections.newUniqID();
-                BlockingConnectionHandler<T> handler = new BlockingConnectionHandler<>(
-                        clientSock,
-                        encdecFactory.get(),
-                        stompProtocolFactory.get(),uniqID,connections);
+                if(isStomp){
+                    BlockingStompHandler<T> handler = new BlockingStompHandler<>(
+                    clientSock,
+                    encdecFactory.get(),
+                    stompProtocolFactory.get(),uniqID,connections);
                 connections.addClientToActiveClients(uniqID, handler);
                 execute(handler);
+            }
+            else{
+                BlockingConnectionHandler<T> handler2=new BlockingConnectionHandler<>(
+                clientSock,
+                encdecFactory.get(),
+                protocolFactory.get(),uniqID,connections);
+                connections.addClientToActiveClients(uniqID, handler2);
+                execute(handler2);
+            }
+                
             }
         } catch (IOException ex) {
         }
@@ -60,6 +86,8 @@ public abstract class BaseServer<T> implements Server<T> {
 			sock.close();
     }
 
+    protected abstract void execute(BlockingStompHandler<T>  handler);
+    
     protected abstract void execute(BlockingConnectionHandler<T>  handler);
 
 }
