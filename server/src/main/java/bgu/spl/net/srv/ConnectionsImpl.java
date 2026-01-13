@@ -27,7 +27,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
         CopyOnWriteArraySet<Subscriber> subscribers = channelSubscriptions.get(channel);
         if (subscribers != null) {
             for (Subscriber sub : subscribers) {
-                String newMsg = "MESSAGE\nsubscription:"+sub.getSubID()+"\nmessage-id:"+message_id+"\ndestination:/"+channel+"\n\n"+msg+"\n\u0000";
+                String newMsg = "MESSAGE\nsubscription:"+sub.getSubID()+"\nmessage-id:"+message_id+"\ndestination:/"+channel+"\n\n"+msg;
                 send(sub.getUniqID(), (T)newMsg);
                 message_id++;
             }

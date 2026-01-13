@@ -1,17 +1,40 @@
 package bgu.spl.net.impl.stomp;
-import java.util.*;
+
+import bgu.spl.net.api.StompProtocolImpl;
+import bgu.spl.net.impl.echo.LineMessageEncoderDecoder; // Replace with your StompMessageEncoderDecoder
+import bgu.spl.net.srv.Server;
+
 public class StompServer {
 
     public static void main(String[] args) {
-        // TODO: implement this
-        String message="SEND\ndestination:/topic/123\n\nRazx stared at the golden swirl of hummus, its olive oil glistening like a desert oasis. He scooped a massive glob with warm pita, the creamy chickpeas melting on his tongue. Tahini richness and garlic tang exploded in every bite. Razx smiled, belly full, finally at peace with the world.";
-        int firstLiner=message.indexOf('\n');
-                    int secondLiner=message.substring(firstLiner+1).indexOf('\n');
-                    int thirdLiner=message.substring(secondLiner+1).indexOf('\n');
-                    String toSend=message.substring(thirdLiner+1);
-                    System.out.println(toSend);
-         
-         }
-         
-    }
+        // According to the PDF, args[0] is port and args[1] is server type
+        if (args.length < 2) {
+            System.out.println("Usage: StompServer <port> <tpc/reactor>");
+            return;
+        }
 
+        int port = Integer.parseInt(args[0]);
+        String serverType = args[1];
+
+        if (serverType.equalsIgnoreCase("tpc")) {
+            // Thread-Per-Client server
+            Server.threadPerClient(
+                    port,
+                    StompProtocolImpl::new,    // Protocol factory: provides a new instance for each client
+                    LineMessageEncoderDecoder::new // Replace this with your STOMP-specific EncDec
+            ).serve();
+
+        } else if (serverType.equalsIgnoreCase("reactor")) {
+            // Reactor server
+            Server.Reactor(
+                    Runtime.getRuntime().availableProcessors(), // Number of threads in the pool
+                    port,
+                    StompProtocolImpl::new,    // Protocol factory
+                    LineMessageEncoderDecoder::new // Replace this with your STOMP-specific EncDec
+            ).serve();
+
+        } else {
+            System.out.println("Unknown server type. Please use 'tpc' or 'reactor'.");
+        }
+    }
+}

@@ -107,12 +107,12 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 if (status == LoginStatus.LOGGED_IN_SUCCESSFULLY || status == LoginStatus.ADDED_NEW_USER) {
                     this.isConnected = true;
                     if(!frameHasReceipt){
-                        String response = "CONNECTED\nversion:1.2\n\n\u0000";  //actual response to client
+                        String response = "CONNECTED\nversion:1.2\n";  //actual response to client
                         connections.send(connectionId, response);
                     }
                     else{
-                        String response = "CONNECTED\nversion:1.2\n\n\u0000";  //actual response to client
-                        String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
+                        String response = "CONNECTED\nversion:1.2\n";  //actual response to client
+                        String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n";
                         connections.send(connectionId, response);
                         connections.send(connectionId, receiptResponse);
                     }
@@ -194,7 +194,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     connections.send(destination, toSend); // ConnectionsImpl will wrap toSend with MESSAGE text format
                 }
                 else{
-                    String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
+                    String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n";
                     connections.send(destination, toSend); // ConnectionsImpl will wrap toSend with MESSAGE text format
                     connections.send(connectionId, receiptResponse); 
                 }
@@ -253,7 +253,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 ((ConnectionsImpl)connections).addClientToTopic(sub,topic);
                 Database.getInstance().getUserByConnectionId(connectionId).addToSubsList(sub);
                 if(frameHasReceipt){
-                    String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
+                    String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n";
                     connections.send(connectionId, receiptResponse);
                 }
                 break;
@@ -304,7 +304,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     return;
                 }
                 if(frameHasReceipt){
-                    String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n\n\u0000";
+                    String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n";
                     connections.send(connectionId, receiptResponse);
                     return;
                 }
@@ -328,7 +328,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     return;
                 }
                 String receipt_id = lines[1].substring(8).trim();
-                String receiptResponse="RECEIPT\nreceipt-id:"+receipt_id+"\n\n\u0000";
+                String receiptResponse="RECEIPT\nreceipt-id:"+receipt_id+"\n";
                 Database.getInstance().getUserByConnectionId(connectionId).clearAllSubs();
                 connections.send(connectionId, receiptResponse);
                 ((ConnectionsImpl)connections).disconnect(connectionId);
@@ -358,9 +358,9 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
             toSend=toSend+"\nreceipt-id: "+receiptID+"\n";
         }
         toSend=toSend+"message: "+err+"\n";
-        toSend=toSend+"Error Came from COMMAND: "+caseType+"\n---------------\nOriginal message sent:\n"+originalMSG+"\n"+"---------------"+"\u0000";
+        toSend=toSend+"Error Came from COMMAND: "+caseType+"\n---------------\nOriginal message sent:\n"+originalMSG+"\n"+"---------------";
         connections.send(connectionId, toSend);
-         connections.disconnect(connectionId);
+        connections.disconnect(connectionId);
         if(isConnected){
             Database.getInstance().logout(connectionId);
         }

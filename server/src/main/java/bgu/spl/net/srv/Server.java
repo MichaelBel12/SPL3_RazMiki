@@ -31,7 +31,7 @@ public interface Server<T> extends Closeable {
                 new Thread(handler).start();
             }
         };
-
+        
     }
 
     /**
