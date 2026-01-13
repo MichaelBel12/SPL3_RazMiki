@@ -1,11 +1,12 @@
 package bgu.spl.net.impl.data;
 import java.util.LinkedList;
+import java.util.concurrent.CopyOnWriteArraySet;
 public class User {
 	public final String name;
 	public final String password;
 	private int connectionId;
 	private boolean isLoggedIn = false;
-	private LinkedList<Subscriber> mySubs;
+	private CopyOnWriteArraySet<Subscriber> mySubs=new CopyOnWriteArraySet<>();
 
 	public User(int connectionId, String name, String password) {
 		this.connectionId = connectionId;
@@ -33,7 +34,7 @@ public class User {
 		this.connectionId = connectionId;
 	}
 
-	public LinkedList<Subscriber> getSubsList(){
+	public CopyOnWriteArraySet<Subscriber> getSubsList(){
 		return mySubs;
 	}
 	public void addToSubsList(Subscriber sub){

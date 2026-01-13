@@ -1,13 +1,12 @@
 package bgu.spl.net.api;
 
-import bgu.spl.net.srv.ConnectionHandler;
 import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
 
 import java.util.jar.Attributes.Name;
 
 import javax.xml.crypto.Data;
-
+import bgu.spl.net.impl.data.User;
 import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.impl.data.LoginStatus;
 import bgu.spl.net.impl.data.Subscriber;
@@ -135,12 +134,15 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 break;
 
             case "SEND":    ///////////////////////////////////////////////////////////////////////////////send
-            if(!(Database.getInstance().getUserByConnectionId(connectionId)).isLoggedIn()){
+            if(!isConnected){
                      HandleError(command,"User is not connected to the system!",receiptID,message);
+                     return;
                 }
                 if(!frameHasReceipt){
-                    if(lines.length<4)
-                         HandleError(command,"Missing lines on SEND frame",receiptID,message);
+                    if(lines.length<4){
+                        HandleError(command,"Missing lines on SEND frame",receiptID,message);
+                        return;
+                    }
                     if(!lines[1].startsWith("destination:/")){
                          HandleError(command,"Missing or wrong destination header",receiptID,message);
                         return;
@@ -153,6 +155,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 else{
                     if(lines.length<5){
                         HandleError(command,"Missing lines on SEND frame",receiptID,message);
+                        return;
                     }
                        
                     if(!(lines[1].startsWith("destination:/")&&lines[2].startsWith("receipt:"))
@@ -174,6 +177,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 String destination= lines[j].substring(13).trim();
                 if(destination.length()==0){
                      HandleError(command,"Missing a topic!",receiptID,message);
+                     return;
                 }
                 int validity=((ConnectionsImpl)connections).topicContainsUniqID(destination,connectionId);
                 if(validity==-1){
@@ -198,8 +202,9 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
 
                 
             case "SUBSCRIBE":      //////////////////////////////////////////////////////////////SUBSCRIBE
-                if(!(Database.getInstance().getUserByConnectionId(connectionId)).isLoggedIn()){
+            if(!isConnected){
                      HandleError(command,"User is not connected to the system!",receiptID,message);
+                     return;
                 }
                 String sub_id=null;
                 String topic=null;
@@ -254,15 +259,16 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 break;
 
             case "UNSUBSCRIBE":            //////////////////////////////////////////////////////////////////////UNSUB
-                if(!(Database.getInstance().getUserByConnectionId(connectionId)).isLoggedIn()){
+                if(!isConnected){
                      HandleError(command,"User is not connected to the system!",receiptID,message);
+                     return;
                 }
                 if(frameHasReceipt){
                     if(lines.length !=4){
                          HandleError(command,"Unsubscribe format invalid",receiptID,message);
                         return;
                     }
-                    if(!(lines[1].startsWith("id:") && lines[2].startsWith("receipt:")) ||
+                    if(!(lines[1].startsWith("id:") && lines[2].startsWith("receipt:")) &&
                         !(lines[1].startsWith("receipt:") && lines[2].startsWith("id:"))){
                              HandleError(command,"Wrong headers for unsubscribe!",receiptID,message);
                             return;
@@ -304,9 +310,10 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 break;
                
-            case "DISCONNECT":
-                if(!(Database.getInstance().getUserByConnectionId(connectionId)).isLoggedIn()){
+            case "DISCONNECT":                   ///////////////////////////////////////////////////////////////////////////////////////
+                if(!isConnected){
                      HandleError(command,"User is not connected to the system!",receiptID,message);
+                     return;
                 }
                 if(!lines[1].startsWith("receipt:")){
                      HandleError(command,"Disconnect frame must include receipt!",receiptID,message);
@@ -318,6 +325,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 if(!lines[2].isEmpty()){
                     HandleError(command,"Invalid Command!",receiptID,message);
+                    return;
                 }
                 String receipt_id = lines[1].substring(8).trim();
                 String receiptResponse="RECEIPT\nreceipt-id:"+receipt_id+"\n\n\u0000";
@@ -349,9 +357,15 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
         if(receiptID!=null){
             toSend=toSend+"\nreceipt-id: "+receiptID+"\n";
         }
-        toSend=toSend+"Error Description: "+err+"\n";
+        toSend=toSend+"message: "+err+"\n";
         toSend=toSend+"Error Came from COMMAND: "+caseType+"\n---------------\nOriginal message sent:\n"+originalMSG+"\n"+"---------------"+"\u0000";
-
+        connections.send(connectionId, toSend);
+         connections.disconnect(connectionId);
+        if(isConnected){
+            Database.getInstance().logout(connectionId);
+        }
+        isConnected=false;
+        shouldTerminate=true;
     }
     
 }
