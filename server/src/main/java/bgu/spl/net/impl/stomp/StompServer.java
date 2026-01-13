@@ -1,5 +1,9 @@
 package bgu.spl.net.impl.stomp;
 
+import java.util.function.Supplier;
+
+import bgu.spl.net.api.MessagingProtocol;
+import bgu.spl.net.api.StompEncDec;
 import bgu.spl.net.api.StompProtocolImpl;
 import bgu.spl.net.impl.echo.LineMessageEncoderDecoder; // Replace with your StompMessageEncoderDecoder
 import bgu.spl.net.srv.Server;
@@ -20,17 +24,17 @@ public class StompServer {
             // Thread-Per-Client server
             Server.threadPerClient(
                     port,
-                    StompProtocolImpl::new,    // Protocol factory: provides a new instance for each client
-                    LineMessageEncoderDecoder::new // Replace this with your STOMP-specific EncDec
+                    ()->new StompProtocolImpl(),   
+                    StompEncDec::new 
             ).serve();
 
         } else if (serverType.equalsIgnoreCase("reactor")) {
             // Reactor server
-            Server.Reactor(
-                    Runtime.getRuntime().availableProcessors(), // Number of threads in the pool
+            Server.reactor(
+                    Runtime.getRuntime().availableProcessors(), 
                     port,
-                    StompProtocolImpl::new,    // Protocol factory
-                    LineMessageEncoderDecoder::new // Replace this with your STOMP-specific EncDec
+                    ()->new StompProtocolImpl(),   
+                    StompEncDec::new 
             ).serve();
 
         } else {
