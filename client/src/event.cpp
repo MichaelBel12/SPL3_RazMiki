@@ -17,6 +17,71 @@ Event::Event(std::string team_a_name, std::string team_b_name, std::string name,
 {
 }
 
+Event::Event(const std::string &frame_body) 
+    : team_a_name(""), team_b_name(""), name(""), time(0), 
+      game_updates(), team_a_updates(), team_b_updates(), description("") 
+{
+    std::stringstream ss(frame_body);
+    std::string line;
+    std::string current_section = "";
+
+    while (std::getline(ss, line)) {
+        if (line.empty() || line == "\r") continue;
+
+        if (line.find("user:") == 0) continue; 
+
+        if (line.find("team a: ") == 0) team_a_name = line.substr(8);
+        else if (line.find("team b: ") == 0) team_b_name = line.substr(8);
+        else if (line.find("event name: ") == 0) name = line.substr(12);
+        else if (line.find("time: ") == 0) time = std::stoi(line.substr(6));
+
+        else if (line.find("general game updates:") == 0) current_section = "general";
+        else if (line.find("team a updates:") == 0) current_section = "teama";
+        else if (line.find("team b updates:") == 0) current_section = "teamb";
+
+        else if (line.find("description:") == 0) {
+            std::string desc;
+            while(std::getline(ss, line)) desc += line + "\n";
+            if (!desc.empty()) desc.pop_back(); // Trim trailing \n
+            description = desc;
+            break; 
+        }
+
+        // Check for the 4-space indent
+        else if (line.substr(0, 4) == "    ") {
+            int colon = line.find(':');
+            if (colon > 0) {
+                std::string k = line.substr(4, colon - 4);
+                std::string v = line.substr(colon + 2); 
+                if (current_section == "general") game_updates[k] = v;
+                else if (current_section == "teama") team_a_updates[k] = v;
+                else if (current_section == "teamb") team_b_updates[k] = v;
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Event::~Event()
 {
 }

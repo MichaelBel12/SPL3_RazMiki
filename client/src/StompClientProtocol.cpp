@@ -56,7 +56,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
                 for (const auto& pair : e.get_team_b_updates()) {
                     tosend += "    "+pair.first + ": " + pair.second + "\n";
                 }
-                tosend+="description:\n"+e.get_discription();
+                tosend+="description:\n"+e.get_discription()+"\n";
                 output.push_back(tosend);
             }
     }
@@ -143,11 +143,11 @@ bool StompClientProtocol::processResponse(std::string frame) {
          std::cout<< frame << std::endl;
         return false;
     }
-    if(command=="CONNECTED"){
+    else if(command=="CONNECTED"){
         std::cout<< "Login successful" << std::endl;
         return true;
     }
-    if(command=="RECEIPT"){
+    else if(command=="RECEIPT"){
        std::string header;
        ss >> header; 
        std::string id = header.substr(header.find(':') + 1);
@@ -161,6 +161,24 @@ bool StompClientProtocol::processResponse(std::string frame) {
        return true;
        
     }
+    else if(command == "MESSAGE") {
+    std::string line;
+    std::string destination;
+    std::string body;
+    std::getline(ss, line); // skip first line
+    std::getline(ss, line); // skip first 2nd line
+    std::getline(ss, line); // extact line --> destination:/topic
+    destination = line.substr(line.find('/') + 1); //topic
+    std::getline(ss, line); // skip blank line
+    std::getline(ss, body, '\0'); 
+    std::stringstream bodySS(body);  //splitting into words
+    std::string userLine;
+    std::getline(bodySS, userLine);
+    std::string sender = userLine.substr(userLine.find(':') + 2); //starts with user:(space)'_____' <--extracting (thus skipping 2 indexes)
+    Event newEvent(body); 
+    history[{destination, sender}].push_back(newEvent);
+    return true;
+}
 
     return false;
 }
