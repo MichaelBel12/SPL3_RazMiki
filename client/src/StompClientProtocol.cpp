@@ -13,9 +13,7 @@ std::map<int,std::string> receiptMap;
 
 std::vector<std::string> StompClientProtocol::processInput(std::string input) {
     std::vector<std::string> output;
-    std::string userInput;
-    std::getline(std::cin, userInput);
-    std::stringstream ss(userInput);
+    std::stringstream ss(input);
     std::string command;
     ss >> command;
     if(command=="join"){
@@ -24,7 +22,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
         std::string toSend="SUBSCRIBE\ndestination:/"+game_name+"\nid:"+std::to_string(counterID++)+"\nreceipt:"+std::to_string(counterID)+"\n\n";
         map[game_name]=counterID;
         output.push_back(toSend);
-        receiptMap[counterID]=="joined channel "+game_name;
+        receiptMap[counterID]="joined channel "+game_name;
     }
     else if(command=="exit"){
         std::string game_name; //we assume its legal according to the pdf
@@ -32,9 +30,9 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
         if (map.count(game_name)>0) {  
         int idToRemove=map[game_name];
         map.erase(game_name);
-        std::string toSend="UNSUBSCRIBE\nid:"+std::to_string(idToRemove)+"receipt:"+std::to_string(counterID++);
+        std::string toSend="UNSUBSCRIBE\nid:"+std::to_string(idToRemove)+"\nreceipt:"+std::to_string(counterID++);
         output.push_back(toSend);
-        receiptMap[counterID]=="Exited channel "+game_name;
+        receiptMap[counterID]="Exited channel "+game_name;
         } 
     }
     else if(command=="report"){
@@ -43,7 +41,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
             names_and_events curEventNames= parseEventsFile(json);
             std::string game_name= curEventNames.team_a_name +"_"+ curEventNames.team_b_name;
             for(Event e:curEventNames.events){
-                std::string tosend="SEND\ndestination:/"+game_name+"\n\nuser: "+myUsername+"team a: "+curEventNames.team_a_name+"\nteam b: "+curEventNames.team_b_name
+                std::string tosend="SEND\ndestination:/"+game_name+"\n\nuser: "+myUsername+"\nteam a: "+curEventNames.team_a_name+"\nteam b: "+curEventNames.team_b_name
                 +"event name: "+e.get_name()+"\ntime: "+std::to_string(e.get_time())+"general game updates: \n";
                 for (const auto& pair : e.get_game_updates()) {
                     tosend += "    "+pair.first + ": " + pair.second + "\n";
@@ -126,7 +124,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
             }
     }
     else if(command=="logout"){
-        std::string toSend="DISCONNECT\nreceipt:"+counterID++;
+        std::string toSend="DISCONNECT\nreceipt:"+std::to_string(counterID++);
         output.push_back(toSend);
        receiptMap[counterID]="logout"; 
     }
@@ -160,21 +158,6 @@ bool StompClientProtocol::processResponse(std::string frame) {
        return true;
        
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     return false;
 }

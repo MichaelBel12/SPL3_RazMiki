@@ -4,7 +4,7 @@
 #include <sstream>
 #include <vector>
 #include "../include/ConnectionHandler.h"
-#include "../include/StompClientProtocol.h" // Corrected: Include the .h header
+#include "../include/StompClientProtocol.h" 
 
 // Global protocol object
 StompClientProtocol protocol;
