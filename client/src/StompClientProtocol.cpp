@@ -19,10 +19,11 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
     if(command=="join"){
         std::string game_name; //we assume its legal according to the pdf
         ss>>game_name;
-        std::string toSend="SUBSCRIBE\ndestination:/"+game_name+"\nid:"+std::to_string(counterID++)+"\nreceipt:"+std::to_string(counterID)+"\n\n";
+        counterID++;
+        std::string toSend="SUBSCRIBE\ndestination:/"+game_name+"\nid:"+std::to_string(counterID)+"\nreceipt:"+std::to_string(counterID)+"\n\n";
         map[game_name]=counterID;
         output.push_back(toSend);
-        receiptMap[counterID]="joined channel "+game_name;
+        receiptMap[counterID]="Joined channel "+game_name;
     }
     else if(command=="exit"){
         std::string game_name; //we assume its legal according to the pdf
@@ -30,7 +31,8 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
         if (map.count(game_name)>0) {  
         int idToRemove=map[game_name];
         map.erase(game_name);
-        std::string toSend="UNSUBSCRIBE\nid:"+std::to_string(idToRemove)+"\nreceipt:"+std::to_string(counterID++);
+        counterID++;
+        std::string toSend="UNSUBSCRIBE\nid:"+std::to_string(idToRemove)+"\nreceipt:"+std::to_string(counterID)+"\n\n";
         output.push_back(toSend);
         receiptMap[counterID]="Exited channel "+game_name;
         } 
@@ -42,7 +44,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
             std::string game_name= curEventNames.team_a_name +"_"+ curEventNames.team_b_name;
             for(Event e:curEventNames.events){
                 std::string tosend="SEND\ndestination:/"+game_name+"\n\nuser: "+myUsername+"\nteam a: "+curEventNames.team_a_name+"\nteam b: "+curEventNames.team_b_name
-                +"event name: "+e.get_name()+"\ntime: "+std::to_string(e.get_time())+"general game updates: \n";
+                +"\nevent name: "+e.get_name()+"\ntime: "+std::to_string(e.get_time())+"\ngeneral game updates: \n";
                 for (const auto& pair : e.get_game_updates()) {
                     tosend += "    "+pair.first + ": " + pair.second + "\n";
                 }
@@ -103,15 +105,15 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
                 outFile<< teamA+" vs "+teamB+"\n";              
                 outFile<< "Game stats: \nGeneral stats:\n";
                 for(std::pair<std::string,std::string>& p : general_stats_vec){
-                    outFile<<p.first+": "+p.second+"\n";
+                    outFile<<"    "+p.first+": "+p.second+"\n";
                 }
                 outFile<<"\n"+teamA+" stats:\n";
                 for(std::pair<std::string,std::string>& p : team_a_stats_vec){
-                    outFile<<p.first+": "+p.second+"\n";
+                    outFile<<"    "+p.first+": "+p.second+"\n";
                 }
                 outFile<<"\n"+teamB+" stats:\n";
                 for(std::pair<std::string,std::string>& p : team_b_stats_vec){
-                    outFile<<p.first+": "+p.second+"\n";
+                    outFile<<"    "+p.first+": "+p.second+"\n";
                 }
                 outFile << "\nGame event reports:\n";
                 for(std::string s:game_reports_and_desc_vec){
@@ -124,7 +126,8 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
             }
     }
     else if(command=="logout"){
-        std::string toSend="DISCONNECT\nreceipt:"+std::to_string(counterID++);
+        counterID++;
+        std::string toSend="DISCONNECT\nreceipt:"+std::to_string(counterID)+"\n\n";
         output.push_back(toSend);
        receiptMap[counterID]="logout"; 
     }
@@ -162,15 +165,15 @@ bool StompClientProtocol::processResponse(std::string frame) {
     return false;
 }
 
-void setUserName(std::string username){
+void StompClientProtocol::setUserName(std::string username){
     myUsername=username;
 }
-bool comparePairs(const std::pair<std::string, std::string>& a, 
+bool StompClientProtocol::comparePairs(const std::pair<std::string, std::string>& a, 
                   const std::pair<std::string, std::string>& b) {
     // Return true if 'a' is lexicographically smaller than 'b'
     return a.first < b.first;
 }
-void removeIfKeyExists(std::vector<std::pair<std::string, std::string>>& vec, std::string key) {
+void StompClientProtocol::removeIfKeyExists(std::vector<std::pair<std::string, std::string>>& vec, std::string key) {
     auto it = vec.begin();
     while (it != vec.end()) {
         if (it->first == key) {
