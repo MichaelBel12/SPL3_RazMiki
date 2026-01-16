@@ -62,7 +62,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 
                 if (isConnected) {
-                     HandleError(command,"User is already connected!",receiptID,message);
+                     HandleError(command,"User already logged in",receiptID,message);
                     return;
                 }
                 String acceptVersion = null;
@@ -119,11 +119,11 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     
                 } 
                 else if (status == LoginStatus.WRONG_PASSWORD) {
-                     HandleError(command,"Wrong password!",receiptID,message);
+                     HandleError(command,"Wrong password",receiptID,message);
                     return;
                 }
                 else if (status == LoginStatus.ALREADY_LOGGED_IN) {
-                     HandleError(command,"User already logged in!",receiptID,message);
+                     HandleError(command,"User already logged in",receiptID,message);
                     return;
                 } 
                 else {
