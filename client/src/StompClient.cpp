@@ -8,13 +8,16 @@
 
 // Global protocol object
 StompClientProtocol protocol;
+bool continueRunning = true;
 
 void socketThreadTask(ConnectionHandler* handler) {
     while (true) {
         std::string serverFrame;
         // Assume no network cable disconnection as per instructions
         if (handler->getFrameAscii(serverFrame, '\0')) {
-            protocol.processResponse(serverFrame); 
+            if (!protocol.processResponse(serverFrame)) {
+                continueRunning = false;
+            }
             serverFrame.clear();
         }
     }
@@ -24,7 +27,7 @@ int main(int argc, char *argv[]) {
     ConnectionHandler* handler = nullptr;
     std::thread* socketThread = nullptr;
 
-    while (true) {
+    while (continueRunning) {
         std::string userInput;
         if (!std::getline(std::cin, userInput)) break;
         std::stringstream ss(userInput);
@@ -42,6 +45,7 @@ int main(int argc, char *argv[]) {
             std::string password;
             ss >> hostPort;
             ss >> username;
+            protocol.setUserName(username);
             ss >> password;
             size_t colonPos = hostPort.find(':');
             std::string host = hostPort.substr(0, colonPos);
@@ -61,9 +65,9 @@ int main(int argc, char *argv[]) {
             
         } 
         else if (handler) {
-            std::string stompFrame = protocol.processInput(userInput);
-            if (!stompFrame.empty()) {
-                handler->sendFrameAscii(stompFrame, '\0');
+            std::vector<std::string> stompFrameVec = protocol.processInput(userInput);
+            for(std::string s:stompFrameVec){
+                handler->sendFrameAscii(s, '\0');
             }
         }
         else{

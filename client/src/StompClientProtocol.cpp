@@ -6,9 +6,10 @@
 #include <map>
 #include <algorithm>
 std::map<std::string, int> map;
-int counterID=0;
+int counterID=100;
 std::string myUsername;
 std::map<std::pair<std::string,std::string>,std::vector<Event>> history; //key: channel,senderName  value:his events
+std::map<int,std::string> receiptMap;
 
 std::vector<std::string> StompClientProtocol::processInput(std::string input) {
     std::vector<std::string> output;
@@ -23,6 +24,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
         std::string toSend="SUBSCRIBE\ndestination:/"+game_name+"\nid:"+std::to_string(counterID++)+"\nreceipt:"+std::to_string(counterID)+"\n\n";
         map[game_name]=counterID;
         output.push_back(toSend);
+        receiptMap[counterID]=="joined channel "+game_name;
     }
     else if(command=="exit"){
         std::string game_name; //we assume its legal according to the pdf
@@ -32,6 +34,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
         map.erase(game_name);
         std::string toSend="UNSUBSCRIBE\nid:"+std::to_string(idToRemove)+"receipt:"+std::to_string(counterID++);
         output.push_back(toSend);
+        receiptMap[counterID]=="Exited channel "+game_name;
         } 
     }
     else if(command=="report"){
@@ -125,12 +128,38 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
     else if(command=="logout"){
         std::string toSend="DISCONNECT\nreceipt:"+counterID++;
         output.push_back(toSend);
+       receiptMap[counterID]="logout"; 
     }
 
     return output;
 }
 
 bool StompClientProtocol::processResponse(std::string frame) {
+    std::stringstream ss(frame); 
+    std::string command;
+    ss >> command;
+    if(command=="ERROR"){
+         std::cout<< frame << std::endl;
+        return false;
+    }
+    if(command=="CONNECTED"){
+        std::cout<< "Login successful" << std::endl;
+        return true;
+    }
+    if(command=="RECEIPT"){
+       std::string header;
+       ss >> header; 
+       std::string id = header.substr(header.find(':') + 1);
+       std::string toSend=receiptMap[std::stoi(id)];
+       if(toSend=="logout"){
+        receiptMap.erase(std::stoi(id));
+        std::cout << "logging out of server -DEBUG" << std::endl;  // ???
+        return false;
+       }
+       else (std::cout << toSend << std::endl);
+       return true;
+       
+    }
 
 
 
@@ -147,8 +176,7 @@ bool StompClientProtocol::processResponse(std::string frame) {
 
 
 
-
-    return true;
+    return false;
 }
 
 void setUserName(std::string username){

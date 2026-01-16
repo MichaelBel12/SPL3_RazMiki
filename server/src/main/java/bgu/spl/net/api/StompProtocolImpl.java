@@ -368,4 +368,5 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
         shouldTerminate=true;
     }
     
+    
 }
