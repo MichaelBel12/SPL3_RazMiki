@@ -161,21 +161,22 @@ bool StompClientProtocol::processResponse(std::string frame) {
        return true;
        
     }
-    else if(command == "MESSAGE") {
-    std::string line;
-    std::string destination;
-    std::string body;
-    std::getline(ss, line); // skip first line
-    std::getline(ss, line); // skip first 2nd line
-    std::getline(ss, line); // extact line --> destination:/topic
-    destination = line.substr(line.find('/') + 1); //topic
-    std::getline(ss, line); // skip blank line
-    std::getline(ss, body, '\0'); 
-    std::stringstream bodySS(body);  //splitting into words
+    else if (command == "MESSAGE") {
+    std::string line, destination, body;
+     std::getline(ss, line);
+    while (std::getline(ss, line) && line != "" && line != "\r") {  //read untill empty line is found
+        if (line.substr(0, 13) == "destination:/") {
+            destination = line.substr(13); //extracting the game name
+        }
+    }
+    while (std::getline(ss, line)) {
+        body += line + "\n";          //parsing the body (report) into 1 string
+    }
+    std::stringstream bodySS(body);    //first line of body is always the sender 
     std::string userLine;
     std::getline(bodySS, userLine);
-    std::string sender = userLine.substr(userLine.find(':') + 2); //starts with user:(space)'_____' <--extracting (thus skipping 2 indexes)
-    Event newEvent(body); 
+    std::string sender = userLine.substr(6);   //prase after "user: "
+    Event newEvent(body);                    //new builder
     history[{destination, sender}].push_back(newEvent);
     return true;
 }

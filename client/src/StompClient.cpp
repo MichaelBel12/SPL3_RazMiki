@@ -17,6 +17,7 @@ void socketThreadTask(ConnectionHandler* handler) {
         if (handler->getFrameAscii(serverFrame, '\0')) {
             if (!protocol.processResponse(serverFrame)) {
                 continueRunning = false;
+                break;
             }
             serverFrame.clear();
         }
