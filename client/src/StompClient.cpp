@@ -61,7 +61,6 @@ int main(int argc, char *argv[]) {
             
         } 
         else if (handler) {
-            // Send all other keyboard commands to the protocol to generate frames
             std::string stompFrame = protocol.processInput(userInput);
             if (!stompFrame.empty()) {
                 handler->sendFrameAscii(stompFrame, '\0');
