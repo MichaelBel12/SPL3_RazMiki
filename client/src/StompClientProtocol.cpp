@@ -96,12 +96,23 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
                 std::vector<std::pair<std::string, std::string>> general_stats_vec;
                 std::vector<std::pair<std::string, std::string>> team_a_stats_vec;
                 std::vector<std::pair<std::string, std::string>> team_b_stats_vec;
-                std::vector<std::string> game_reports_and_desc_vec;
+                std::vector<std::pair<std::string, int>> game_reports_and_desc_vec_beforeHalftime;
+                std::vector<std::pair<std::string, int>> game_reports_and_desc_vec_afterHalftime;
+                bool halftimePassed=false;
         
 
                 for(Event e:eventsToWrite){
+                    if(e.get_name()=="Halftime"){
+                        halftimePassed=true;
+                    }
                     std::map<std::string, std::string> generalupdatesmap=e.get_game_updates();
                     for(const auto& pair : generalupdatesmap) {
+                        if(pair.first=="before halftime"){
+                            if(pair.second=="true")
+                            {halftimePassed=false;}
+                            else{halftimePassed=true;}
+
+                        }
                         const std::string& key = pair.first;
                         const std::string& value = pair.second;
                         removeIfKeyExists(general_stats_vec, key);
@@ -121,8 +132,18 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
                         removeIfKeyExists(team_b_stats_vec, key);
                         team_b_stats_vec.push_back({key, value});
                     }
-                    game_reports_and_desc_vec.push_back(std::to_string(e.get_time()) +" - "+ e.get_name()+":\n\n"+e.get_discription()+"\n");
-                }  
+                    int timeOfEvent=e.get_time();
+
+                    if (halftimePassed){
+                        game_reports_and_desc_vec_afterHalftime.push_back({std::to_string(e.get_time()) +" - "+ e.get_name()+":\n\n"+e.get_discription()+"\n",timeOfEvent});
+                    }
+                    else{
+                        game_reports_and_desc_vec_beforeHalftime.push_back({std::to_string(e.get_time()) +" - "+ e.get_name()+":\n\n"+e.get_discription()+"\n",timeOfEvent});
+                    }
+                    
+                } 
+                std::sort(game_reports_and_desc_vec_beforeHalftime.begin(),game_reports_and_desc_vec_beforeHalftime.end(),comparebytime);
+                std::sort(game_reports_and_desc_vec_afterHalftime.begin(),game_reports_and_desc_vec_afterHalftime.end(),comparebytime);
                 std::sort(general_stats_vec.begin(),general_stats_vec.end(),comparePairs);
                 std::sort(team_a_stats_vec.begin(),team_a_stats_vec.end(),comparePairs);
                 std::sort(team_b_stats_vec.begin(),team_b_stats_vec.end(),comparePairs);
@@ -140,8 +161,12 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
                     outFile<<"    "+p.first+": "+p.second+"\n";
                 }
                 outFile << "\nGame event reports:\n";
-                for(std::string s:game_reports_and_desc_vec){
-                    outFile<< s+"\n";
+                for(std::pair<std::string, int> s:game_reports_and_desc_vec_beforeHalftime){
+                    outFile<< s.first+"\n";
+                }
+                outFile << "\nGame event reports:\n";
+                for(std::pair<std::string, int> s:game_reports_and_desc_vec_afterHalftime){
+                    outFile<< s.first+"\n";
                 }
             }
             else{
@@ -235,3 +260,7 @@ void StompClientProtocol::clear(){
     receiptMap.clear();
     history.clear();
 }
+bool StompClientProtocol::comparebytime(const std::pair<std::string, int>& a, 
+                  const std::pair<std::string, int>& b){
+    return a.second < b.second;
+                  }

@@ -18,5 +18,7 @@ public:
 
     void clear();
 
+    static bool comparebytime(const std::pair<std::string, int>& a,const std::pair<std::string, int>& b);
+
 
 };
