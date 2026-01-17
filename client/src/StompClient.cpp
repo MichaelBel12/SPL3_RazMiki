@@ -6,20 +6,21 @@
 #include "../include/ConnectionHandler.h"
 #include "../include/StompClientProtocol.h" 
 
-// Global protocol object
 StompClientProtocol protocol;
-bool continueRunning = true;
+bool isConnected = false; // Tracks the state of the network connection
 
 void socketThreadTask(ConnectionHandler* handler) {
-    while (true) {
+    while (isConnected) {
         std::string serverFrame;
-        // Assume no network cable disconnection as per instructions
         if (handler->getFrameAscii(serverFrame, '\0')) {
             if (!protocol.processResponse(serverFrame)) {
-                continueRunning = false;
+                isConnected = false; 
                 break;
             }
             serverFrame.clear();
+        } else {
+            isConnected = false;
+            break;
         }
     }
 }
@@ -27,57 +28,72 @@ void socketThreadTask(ConnectionHandler* handler) {
 int main(int argc, char *argv[]) {
     ConnectionHandler* handler = nullptr;
     std::thread* socketThread = nullptr;
-
-    while (continueRunning) {
-        std::string userInput;
-        if (!std::getline(std::cin, userInput)) break;
+    std::string userInput;
+    while (std::getline(std::cin, userInput)) {
+        if (userInput.empty()) continue;
         std::stringstream ss(userInput);
         std::string command;
         ss >> command;
+        if (handler != nullptr && !isConnected) {
+            if (socketThread && socketThread->joinable()) {
+                socketThread->join();
+            }
+            std::thread* temp=socketThread;
+            delete temp;
+            socketThread = nullptr;
+            ConnectionHandler* tempHand=handler;
+            delete tempHand;
+            handler = nullptr;
+            protocol.clear(); // clearing protocol data on disconnection
+        }
 
         if (command == "login") {
-            if(handler){
+            if (handler != nullptr) {
                 std::cout << "The client is already logged in, log out before trying again" << std::endl;
                 continue;
             }
-            else{
-            std::string hostPort;
-            std::string username;
-            std::string password;
-            ss >> hostPort;
-            ss >> username;
-            protocol.setUserName(username);
-            ss >> password;
+            std::string hostPort, username, password;
+            ss >> hostPort >> username >> password;
             size_t colonPos = hostPort.find(':');
             std::string host = hostPort.substr(0, colonPos);
-            short port = std::stoi(hostPort.substr(colonPos + 1)); //from string t int
+            short port = std::stoi(hostPort.substr(colonPos + 1));
             handler = new ConnectionHandler(host, port);
             if (handler->connect()) {
+                isConnected = true; 
+                protocol.setUserName(username);
+
+                
                 std::string connectFrame = "CONNECT\naccept-version:1.2\nhost:stomp.cs.bgu.ac.il\n"
                                            "login:" + username + "\npasscode:" + password + "\n\n";
                 handler->sendFrameAscii(connectFrame, '\0');
+
+                
                 socketThread = new std::thread(socketThreadTask, handler);
             } else {
                 std::cout << "Could not connect to server" << std::endl;
                 delete handler;
                 handler = nullptr;
-            } 
             }
-            
         } 
-        else if (handler) {
+        else if (handler != nullptr && isConnected) {
+            // Send join, exit, report, summary, or logout to the protocol for processing
             std::vector<std::string> stompFrameVec = protocol.processInput(userInput);
-            for(std::string s:stompFrameVec){
+            for (std::string s : stompFrameVec) {
                 handler->sendFrameAscii(s, '\0');
             }
-        }
-        else{
+        } 
+        else {
             std::cout << "You must log in first." << std::endl;
         }
     }
 
-
-    if (socketThread && socketThread->joinable()) socketThread->join();
+    // Final cleanup when the program exits
+    isConnected = false;
+    if (socketThread && socketThread->joinable()) {
+        socketThread->join();
+    }
+    delete socketThread;
     delete handler;
+
     return 0;
 }

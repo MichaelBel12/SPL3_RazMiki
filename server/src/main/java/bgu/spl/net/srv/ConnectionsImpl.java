@@ -13,10 +13,10 @@ public class ConnectionsImpl<T> implements Connections<T> {
     private int message_id = 0;
 
     
-    public boolean send(int connectionId, T msg) {
+    public boolean send(int connectionId, T msg) {   ////
         ConnectionHandler<T> handler = activeClients.get(connectionId);
         if (handler != null) {
-            handler.send(msg); 
+            handler.send(msg);
             return true;
         }
         return false;
@@ -70,13 +70,13 @@ public class ConnectionsImpl<T> implements Connections<T> {
         channelSubscriptions.get(topic).add(sub);
     }
 
-    public int topicContainsUniqID(String topic,int connectionID){
+    public int topicContainsUniqID(String topic,int given_conec_id){
         if(!channelSubscriptions.containsKey(topic)){
-            return -1;          //this topic does not exists.
+            return -1;          //this topic does not exists. but we wil create it (wont use this case)
         }   
         CopyOnWriteArraySet<Subscriber> set = channelSubscriptions.get(topic);  
         for(Subscriber cur:set){       
-            if(cur.getUniqID()==connectionID){
+            if(cur.getUniqID()==given_conec_id){
                 return 1;         //topic exists, also contain client
             }
         }

@@ -48,7 +48,6 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
         switch (command) {
             case "CONNECT":
                 if(!frameHasReceipt){
-                    System.out.println("LINES LENGTH: "+lines.length);
                     if(lines.length!=6){
                          HandleError(command,"Wrong format1- frame Has less/more lines than needed",receiptID,message);
                         return;
@@ -179,6 +178,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                      HandleError(command,"Missing a topic!",receiptID,message);
                      return;
                 }
+ 
                 int validity=((ConnectionsImpl)connections).topicContainsUniqID(destination,connectionId);
                 if(validity==-1){
                      HandleError(command,"Given topic does not exist!",receiptID,message);
@@ -244,11 +244,12 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     return;
                 }
                 int sub_num = Integer.parseInt(sub_id);
-                int alreadySubscribed=((ConnectionsImpl)connections).topicContainsUniqID(topic,sub_num);
+                int alreadySubscribed=((ConnectionsImpl)connections).topicContainsUniqID(topic,connectionId);
                 if(alreadySubscribed==1){
                      HandleError(command,"Client already subscribed to the channel!",receiptID,message);
                     return;
                 }
+            
                 Subscriber sub=new Subscriber(connectionId, sub_num,topic);
                 ((ConnectionsImpl)connections).addClientToTopic(sub,topic);
                 Database.getInstance().getUserByConnectionId(connectionId).addToSubsList(sub);
@@ -274,14 +275,18 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                             return;
                         }
                 }
+                
                 else if(lines.length != 3){
                      HandleError(command,"Unsubscribe format invalid",receiptID,message);
-                    return;
+                     return;
                 }
-                if(!(lines[1].startsWith("id:") && lines[2].isEmpty())){
-                     HandleError(command,"Wrong headers for unsubscribe!",receiptID,message);
+                if(!frameHasReceipt){
+                    if(!(lines[1].startsWith("id:") && lines[2].isEmpty())){
+                    HandleError(command,"Wrong headers for unsubscribe!!",receiptID,message);
                     return;
+                    }
                 }
+                    
                 int k = 1;
                 if(lines[1].startsWith("receipt:")){
                     k = 2;
@@ -297,12 +302,12 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                     return;
                 }
                 int subs_int = Integer.parseInt(subs_id);
-                Database.getInstance().getUserByConnectionId(connectionId).removeSubFromList(subs_int);
                 boolean success = ((ConnectionsImpl)connections).findAndRemoveSub(connectionId, subs_int);
                 if(!success){
-                     HandleError(command,"this user with given id is not subscribed to any topic",receiptID,message);
+                     HandleError(command,"this user with given id is not subscribed to this topic",receiptID,message);
                     return;
                 }
+                Database.getInstance().getUserByConnectionId(connectionId).removeSubFromList(subs_int);
                 if(frameHasReceipt){
                     String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n";
                     connections.send(connectionId, receiptResponse);
@@ -329,10 +334,11 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 String receipt_id = lines[1].substring(8).trim();
                 String receiptResponse="RECEIPT\nreceipt-id:"+receipt_id+"\n";
-                Database.getInstance().getUserByConnectionId(connectionId).clearAllSubs();
+                // Database.getInstance().getUserByConnectionId(connectionId).clearAllSubs();
                 connections.send(connectionId, receiptResponse);
                 ((ConnectionsImpl)connections).disconnect(connectionId);
                 Database.getInstance().logout(connectionId);
+                isConnected=false;
                 shouldTerminate = true;
                 break;
 

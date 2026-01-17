@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
-
+#include <vector>  
+#include <utility> 
 class StompClientProtocol {
 public:
     // Translates keyboard commands into raw STOMP frames
@@ -11,10 +12,11 @@ public:
     
     void setUserName(std::string username);
 
-    bool comparePairs(const std::pair<std::string, std::string>& a,const std::pair<std::string, std::string>& b);
+    static bool comparePairs(const std::pair<std::string, std::string>& a,const std::pair<std::string, std::string>& b); //changed to static for the compare
 
     void removeIfKeyExists(std::vector<std::pair<std::string, std::string>>& vec, std::string key);
 
+    void clear();
 
 
 };

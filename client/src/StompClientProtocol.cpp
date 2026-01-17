@@ -1,3 +1,4 @@
+
 #include "../include/StompClientProtocol.h"
 #include <iostream>
 #include <sstream>
@@ -5,7 +6,11 @@
 #include <fstream>
 #include <map>
 #include <algorithm>
-std::map<std::string, int> map;
+#include <string>
+#include <random>
+
+
+std::map<std::string, int> map_ChannelWithSubID;
 int counterID=100;
 std::string myUsername;
 std::map<std::pair<std::string,std::string>,std::vector<Event>> history; //key: channel,senderName  value:his events
@@ -16,26 +21,39 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
     std::stringstream ss(input);
     std::string command;
     ss >> command;
+    std::cout << "command: "+ command <<std::endl;
     if(command=="join"){
         std::string game_name; //we assume its legal according to the pdf
         ss>>game_name;
         counterID++;
-        std::string toSend="SUBSCRIBE\ndestination:/"+game_name+"\nid:"+std::to_string(counterID)+"\nreceipt:"+std::to_string(counterID)+"\n\n";
-        map[game_name]=counterID;
+        int idTosend=counterID;
+        if(map_ChannelWithSubID.count(game_name)>0){
+            idTosend=map_ChannelWithSubID[game_name];
+        }
+        std::string toSend="SUBSCRIBE\ndestination:/"+game_name+"\nid:"+std::to_string(idTosend)+"\nreceipt:"+std::to_string(counterID)+"\n\n";
+        map_ChannelWithSubID[game_name]=idTosend;
         output.push_back(toSend);
         receiptMap[counterID]="Joined channel "+game_name;
     }
     else if(command=="exit"){
         std::string game_name; //we assume its legal according to the pdf
         ss>>game_name;
-        if (map.count(game_name)>0) {  
-        int idToRemove=map[game_name];
-        map.erase(game_name);
+        if (map_ChannelWithSubID.count(game_name)>0) {  
+        int idToRemove=map_ChannelWithSubID[game_name];
+        map_ChannelWithSubID.erase(game_name);
         counterID++;
         std::string toSend="UNSUBSCRIBE\nid:"+std::to_string(idToRemove)+"\nreceipt:"+std::to_string(counterID)+"\n\n";
         output.push_back(toSend);
         receiptMap[counterID]="Exited channel "+game_name;
         } 
+        else{
+        counterID++;
+        std::string toSend = "UNSUBSCRIBE\nid:0\nreceipt:" + std::to_string(counterID) + "\n\n";  //"faking a wrong ubsubscribe just to get the error frame"
+        output.push_back(toSend);
+        receiptMap[counterID] = "Attempted to exit non-existent channel " + game_name;
+        }
+        
+    
     }
     else if(command=="report"){
             std::string json;
@@ -83,19 +101,25 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
 
                 for(Event e:eventsToWrite){
                     std::map<std::string, std::string> generalupdatesmap=e.get_game_updates();
-                    for(const auto& [key, value] : generalupdatesmap){
-                        removeIfKeyExists(general_stats_vec,key);      //ensures us we gonna print only the latest updates for each stat
-                        general_stats_vec.push_back({key,value});
+                    for(const auto& pair : generalupdatesmap) {
+                        const std::string& key = pair.first;
+                        const std::string& value = pair.second;
+                        removeIfKeyExists(general_stats_vec, key);
+                        general_stats_vec.push_back({key, value});
                     }
-                    std::map<std::string, std::string> teamAUpdates=e.get_team_a_updates();
-                    for(const auto& [key, value] : teamAUpdates){
-                        removeIfKeyExists(team_a_stats_vec,key); //ensures us we gonna print only the latest updates for each stat
-                        team_a_stats_vec.push_back({key,value});
-                    }
-                    std::map<std::string, std::string> teamBUpdates=e.get_team_b_updates();
-                    for(const auto& [key, value] : teamBUpdates){
-                        removeIfKeyExists(team_b_stats_vec,key); //ensures us we gonna print only the latest updates for each stat
-                        team_b_stats_vec.push_back({key,value});
+                    std::map<std::string, std::string> teamAUpdates = e.get_team_a_updates();
+                    for(const auto& pair : teamAUpdates) {
+                        const std::string& key = pair.first;
+                        const std::string& value = pair.second;
+                        removeIfKeyExists(team_a_stats_vec, key); 
+                        team_a_stats_vec.push_back({key, value});
+                    } 
+                    std::map<std::string, std::string> teamBUpdates = e.get_team_b_updates();
+                    for(const auto& pair : teamBUpdates) {
+                        const std::string& key = pair.first;
+                        const std::string& value = pair.second;
+                        removeIfKeyExists(team_b_stats_vec, key);
+                        team_b_stats_vec.push_back({key, value});
                     }
                     game_reports_and_desc_vec.push_back(std::to_string(e.get_time()) +" - "+ e.get_name()+":\n\n"+e.get_discription()+"\n");
                 }  
@@ -117,7 +141,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
                 }
                 outFile << "\nGame event reports:\n";
                 for(std::string s:game_reports_and_desc_vec){
-                    outFile<< s;
+                    outFile<< s+"\n";
                 }
             }
             else{
@@ -136,6 +160,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
 }
 
 bool StompClientProtocol::processResponse(std::string frame) {
+    std::cout <<frame<< std::endl;
     std::stringstream ss(frame); 
     std::string command;
     ss >> command;
@@ -154,7 +179,7 @@ bool StompClientProtocol::processResponse(std::string frame) {
        std::string toSend=receiptMap[std::stoi(id)];
        if(toSend=="logout"){
         receiptMap.erase(std::stoi(id));
-        std::cout << "logging out of server -DEBUG" << std::endl;  // ???
+        std::cout << "logging out of server- Bye!" << std::endl;  
         return false;
        }
        else (std::cout << toSend << std::endl);
@@ -203,5 +228,10 @@ void StompClientProtocol::removeIfKeyExists(std::vector<std::pair<std::string, s
          {
            it++; 
         }
-    }
+    }  
+}
+void StompClientProtocol::clear(){
+    map_ChannelWithSubID.clear();
+    receiptMap.clear();
+    history.clear();
 }
