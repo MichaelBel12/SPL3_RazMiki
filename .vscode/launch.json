@@ -6,6 +6,27 @@
     "configurations": [
         {
             "type": "java",
+            "name": "NewsFeedClientMain",
+            "request": "launch",
+            "mainClass": "bgu.spl.net.impl.newsfeed.NewsFeedClientMain",
+            "projectName": "server"
+        },
+        {
+            "type": "java",
+            "name": "NewsFeedServerMain",
+            "request": "launch",
+            "mainClass": "bgu.spl.net.impl.newsfeed.NewsFeedServerMain",
+            "projectName": "server"
+        },
+        {
+            "type": "java",
+            "name": "EchoClient",
+            "request": "launch",
+            "mainClass": "bgu.spl.net.impl.echo.EchoClient",
+            "projectName": "server"
+        },
+        {
+            "type": "java",
             "name": "StompTester",
             "request": "launch",
             "mainClass": "bgu.spl.net.api.StompTester",

@@ -42,12 +42,12 @@ Event::Event(const std::string &frame_body)
         else if (line.find("description:") == 0) {
             std::string desc;
             while(std::getline(ss, line)) desc += line + "\n";
-            if (!desc.empty()) desc.pop_back(); // Trim trailing \n
+            if (!desc.empty()) desc.pop_back(); // trim trailing \n
             description = desc;
             break; 
         }
 
-        // Check for the 4-space indent
+
         else if (line.substr(0, 4) == "    ") {
             int colon = line.find(':');
             if (colon > 0) {

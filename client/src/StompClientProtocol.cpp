@@ -21,7 +21,6 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
     std::stringstream ss(input);
     std::string command;
     ss >> command;
-    std::cout << "command: "+ command <<std::endl;
     if(command=="join"){
         std::string game_name; //we assume its legal according to the pdf
         ss>>game_name;
@@ -75,6 +74,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
                     tosend += "    "+pair.first + ": " + pair.second + "\n";
                 }
                 tosend+="description:\n"+e.get_discription()+"\n";
+                tosend+=json;
                 output.push_back(tosend);
             }
     }
@@ -164,7 +164,6 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
                 for(std::pair<std::string, int> s:game_reports_and_desc_vec_beforeHalftime){
                     outFile<< s.first+"\n";
                 }
-                outFile << "\n";
                 for(std::pair<std::string, int> s:game_reports_and_desc_vec_afterHalftime){
                     outFile<< s.first+"\n";
                 }
@@ -185,7 +184,6 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
 }
 
 bool StompClientProtocol::processResponse(std::string frame) {
-    std::cout <<frame<< std::endl;
     std::stringstream ss(frame); 
     std::string command;
     ss >> command;

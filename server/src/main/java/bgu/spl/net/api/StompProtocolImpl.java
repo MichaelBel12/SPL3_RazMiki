@@ -28,6 +28,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
     public void process(String message) {
         // Split the message into lines so we can check them one by one
         String[] lines = message.split("\n", -1);
+        String jsonFile=lines[lines.length-1].trim();    //client always sends the json file in the last line
         if (lines.length < 1) {
              HandleError("GENERAL","Empty message",null,message);
             return;
@@ -102,7 +103,8 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                      HandleError(command,"Missing login or passcode headers!",receiptID,message);
                     return;
                 }
-                LoginStatus status = Database.getInstance().login(connectionId, username, password);
+                LoginStatus status = Database.getInstance().login(connectionId, username, password); //already sends a report to the SQL!
+
                 if (status == LoginStatus.LOGGED_IN_SUCCESSFULLY || status == LoginStatus.ADDED_NEW_USER) {
                     this.isConnected = true;
                     if(!frameHasReceipt){
@@ -189,13 +191,19 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                      HandleError(command,"Given user isnt subscribed to given topic!",receiptID,message);   
                     return;
                 } 
-                String toSend=message.substring(message.indexOf("\n\n")+2);
+                Database.getInstance().trackFileUpload(Database.getInstance().getUserByConnectionId(connectionId).getname(),jsonFile,destination);
+                String messageBody=message.substring(message.indexOf("\n\n")+2);
+                int lastIndex = messageBody.lastIndexOf('\n'); 
+                String actualMessage=messageBody;
+                if (lastIndex != -1) {
+                    actualMessage = messageBody.substring(0, lastIndex);
+                }
                 if(!frameHasReceipt){
-                    connections.send(destination, toSend); // ConnectionsImpl will wrap toSend with MESSAGE text format
+                    connections.send(destination, actualMessage); // ConnectionsImpl will wrap toSend with MESSAGE text format
                 }
                 else{
                     String receiptResponse="RECEIPT\nreceipt-id:"+receiptID+"\n";
-                    connections.send(destination, toSend); // ConnectionsImpl will wrap toSend with MESSAGE text format
+                    connections.send(destination, actualMessage); // ConnectionsImpl will wrap toSend with MESSAGE text format
                     connections.send(connectionId, receiptResponse); 
                 }
                 break;
@@ -236,6 +244,11 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 if(sub_id==null || topic==null){
                      HandleError(command,"Missing ID or Destination headers",receiptID,message);
+                    return;
+                }
+                int underscoreIndex = topic.indexOf('_');
+                if(underscoreIndex <= 0 || underscoreIndex >= topic.length() - 1){
+                    HandleError(command,"Topic must contain underscore with non-empty strings before and after",receiptID,message);  //even though we assume legal input
                     return;
                 }
                 boolean isNumeric = sub_id.chars().allMatch(Character::isDigit);
@@ -334,12 +347,12 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 String receipt_id = lines[1].substring(8).trim();
                 String receiptResponse="RECEIPT\nreceipt-id:"+receipt_id+"\n";
-                // Database.getInstance().getUserByConnectionId(connectionId).clearAllSubs();
                 connections.send(connectionId, receiptResponse);
                 ((ConnectionsImpl)connections).disconnect(connectionId);
                 Database.getInstance().logout(connectionId);
                 isConnected=false;
                 shouldTerminate = true;
+                Database.getInstance().printReport();
                 break;
 
             default:   

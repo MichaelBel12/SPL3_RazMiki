@@ -52,5 +52,8 @@ public class User {
 			mySubs.remove(sub);
 		}
 	}
+	public String getname(){
+		return name;
+	}
 
 }
