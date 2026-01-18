@@ -164,7 +164,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
                 for(std::pair<std::string, int> s:game_reports_and_desc_vec_beforeHalftime){
                     outFile<< s.first+"\n";
                 }
-                outFile << "\nGame event reports:\n";
+                outFile << "\n";
                 for(std::pair<std::string, int> s:game_reports_and_desc_vec_afterHalftime){
                     outFile<< s.first+"\n";
                 }
