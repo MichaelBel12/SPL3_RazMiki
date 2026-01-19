@@ -355,7 +355,6 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 Database.getInstance().logout(connectionId);
                 isConnected=false;
                 shouldTerminate = true;
-                Database.getInstance().printReport();
                 break;
 
             default:   
