@@ -76,8 +76,7 @@ int main(int argc, char *argv[]) {
             }
         } 
         else if (handler != nullptr && isConnected) {
-            // Send join, exit, report, summary, or logout to the protocol for processing
-            std::vector<std::string> stompFrameVec = protocol.processInput(userInput);
+            std::vector<std::string> stompFrameVec = protocol.processInput(userInput);  // Send join, exit, report, summary, or logout to the protocol for processing
             for (std::string s : stompFrameVec) {
                 handler->sendFrameAscii(s, '\0');
             }
@@ -87,7 +86,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Final cleanup when the program exits
+    // Final cleanup when exits
     isConnected = false;
     if (socketThread && socketThread->joinable()) {
         socketThread->join();

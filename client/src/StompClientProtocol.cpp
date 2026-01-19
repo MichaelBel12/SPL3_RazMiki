@@ -169,8 +169,7 @@ std::vector<std::string> StompClientProtocol::processInput(std::string input) {
                 }
             }
             else{
-                std::cout<<"User Hasn't received any game updates from given user"<<std::endl;
-                //put in the file the error too
+                std::cout<<"User Hasn't received any game updates from given user"<<std::endl;  
             }
     }
     else if(command=="logout"){
@@ -200,9 +199,9 @@ bool StompClientProtocol::processResponse(std::string frame) {
        ss >> header; 
        std::string id = header.substr(header.find(':') + 1);
        std::string toSend=receiptMap[std::stoi(id)];
+       receiptMap.erase(std::stoi(id));
        if(toSend=="logout"){
-        receiptMap.erase(std::stoi(id));
-        std::cout << "logging out of server- Bye!" << std::endl;  
+        std::cout << "logging out of server - Bye!" << std::endl;  
         return false;
        }
        else (std::cout << toSend << std::endl);

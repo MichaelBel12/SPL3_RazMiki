@@ -99,26 +99,6 @@ public class ConnectionsImpl<T> implements Connections<T> {
     }
         
 
-    public void disconnectWithReceipt(int connectionId, T msg) { // Wont useeee
-        Subscriber mySub = null;
-        ConnectionHandler<T> handler = activeClients.get(connectionId);
-        activeClients.remove(connectionId);
-        for(CopyOnWriteArraySet<Subscriber> subscribers : channelSubscriptions.values()){    //removing my subs from all topics 
-            for(Subscriber sub:subscribers){
-                if(sub.getSubID()==connectionId){
-                    subscribers.remove(sub);
-                }
-            }
-        }
-        User myUser = Database.getInstance().getUserByConnectionId(connectionId); //clearing the user's subscriptions list
-        CopyOnWriteArraySet<Subscriber> subsList = myUser.getSubsList();
-        for(Subscriber sub:subsList){
-            subsList.remove(sub);
-        }
-        handler.send(msg);
-    }
-    
-
     public boolean userIsConnected(int id){
         return activeClients.containsKey(id);
     }

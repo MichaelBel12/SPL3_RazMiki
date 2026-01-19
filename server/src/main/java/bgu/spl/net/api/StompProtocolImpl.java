@@ -26,8 +26,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
 
     @Override
     public void process(String message) {
-        // Split the message into lines so we can check them one by one
-        String[] lines = message.split("\n", -1);
+        String[] lines = message.split("\n", -1);    // Split the message into lines so we can check them one by one
         String jsonFile=lines[lines.length-1].trim();    //client always sends the json file in the last line
         if (lines.length < 1) {
              HandleError("GENERAL","Empty message",null,message);
@@ -86,6 +85,10 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                         password = line.substring(9).trim();
                     }
                 }
+                if(username.length()==0 || password.length()==0){
+                     HandleError(command,"Login or passcode cannot be empty!",receiptID,message);
+                    return;
+                }
                 if(emptylines!=1){
                      HandleError(command,"Wrong format- Missing an empty line!",receiptID,message);
                     return;
@@ -134,7 +137,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 
                 break;
 
-            case "SEND":    ///////////////////////////////////////////////////////////////////////////////send
+            case "SEND":    ///////////////////////////////////////////////////////////////////////////////////////////////
             if(!isConnected){
                      HandleError(command,"User is not connected to the system!",receiptID,message);
                      return;
@@ -209,7 +212,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 break;
 
                 
-            case "SUBSCRIBE":      //////////////////////////////////////////////////////////////SUBSCRIBE
+            case "SUBSCRIBE":      //////////////////////////////////////////////////////////////////////////////
             if(!isConnected){
                      HandleError(command,"User is not connected to the system!",receiptID,message);
                      return;
@@ -272,7 +275,7 @@ public class StompProtocolImpl implements StompMessagingProtocol<String> {
                 }
                 break;
 
-            case "UNSUBSCRIBE":            //////////////////////////////////////////////////////////////////////UNSUB
+            case "UNSUBSCRIBE":            //////////////////////////////////////////////////////////////////////
                 if(!isConnected){
                      HandleError(command,"User is not connected to the system!",receiptID,message);
                      return;
