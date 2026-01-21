@@ -235,8 +235,7 @@ void StompClientProtocol::setUserName(std::string username){
     myUsername=username;
 }
 bool StompClientProtocol::comparePairs(const std::pair<std::string, std::string>& a, 
-                  const std::pair<std::string, std::string>& b) {
-    // Return true if 'a' is lexicographically smaller than 'b'
+                  const std::pair<std::string, std::string>& b) { // return true if 'a' is lexicographically smaller than 'b'
     return a.first < b.first;
 }
 void StompClientProtocol::removeIfKeyExists(std::vector<std::pair<std::string, std::string>>& vec, std::string key) {

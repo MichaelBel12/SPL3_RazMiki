@@ -33,10 +33,13 @@ def recv_null_terminated(sock: socket.socket) -> str:
 def init_database():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
+    cursor.execute('DROP TABLE IF EXISTS file_tracking') # drop existing tables to clear previous session data
+    cursor.execute('DROP TABLE IF EXISTS login_history')
+    cursor.execute('DROP TABLE IF EXISTS users')
     
     
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE users (
             username TEXT PRIMARY KEY,
             password TEXT NOT NULL,
             registration_date TEXT NOT NULL
@@ -44,7 +47,7 @@ def init_database():
     ''')
     
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS login_history (
+        CREATE TABLE login_history (
             username TEXT NOT NULL,
             login_time TEXT NOT NULL,
             logout_time TEXT,
@@ -55,7 +58,7 @@ def init_database():
     
     
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS file_tracking (
+        CREATE TABLE file_tracking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
             filename TEXT NOT NULL,
